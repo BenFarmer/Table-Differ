@@ -1,0 +1,12 @@
+db_host: 'example.com'
+db_port: 1234
+db_name: 'mydatabase'
+db_user: 'myusername'
+
+db_type: 'sqlite'
+table_initial: 'table_a'
+table_secondary: 'table_b'
+key_columns: ['1']
+
+initial_table_name: 'origin'
+secondary_table_name: 'comparison'

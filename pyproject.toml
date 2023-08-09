@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "table-differ"
+version = "0.1.0"
+description = ""
+authors = ["Benjamin Farmer <benjaminrfarmer@gmail.com>"]
+readme = "README.md"
+packages = [{include = "table_differ"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+logging = "^0.4.9.6"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
