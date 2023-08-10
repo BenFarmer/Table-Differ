@@ -1,5 +1,11 @@
 #!/bin/env python
 
+""" reporting handles all aspects of the various reports
+    that Table Differ runs both on the 'diff_table' but also
+    on the two tables being compared. Due to the potential size
+    of the two tables, reports done on those are kept to a minimum.
+"""
+
 # BUILT IN
 import logging
 
@@ -113,6 +119,9 @@ class Reports:
             self.outputs()
 
     def outputs(self):
+        """ Outputs all reports gathered onto the CLI using Rich Tables to
+            improve readability.
+        """
         def print_tables():
             self.args["tables"] = (
                 self.args["table_initial"],

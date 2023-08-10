@@ -1,5 +1,16 @@
 #!/bin/env python
 
+""" create_diff_table handles all the aspects used in the creation of a 'diff_table'.
+    This includes:
+        - queries to each specific database
+        - pieces of syntax correct SQL that each query may need such as:
+                - arguments within the SELECT clause
+                - arguments that are used to join the tables by
+                - arguments that are used to exclude specific rows
+        - function that stores the schema of actively used tables
+            for usage within the queries
+"""
+
 # BUILT-INS
 import logging
 
@@ -136,7 +147,7 @@ class Tables:
         self.conn = conn
         self.tables = ["A", "B"]
 
-    def create_diff_table(self):
+    def create_dif f_table(self):
         pieces = QueryPieces(self.args, self.conn)
 
         select_args = pieces._select_args_universal()
