@@ -1,5 +1,49 @@
 #!/bin/env python3
 
+# long-help
+""" Table Differ: Table comparison utility to be used within a SQLite, PostgreSQL, MySQL, or DuckDB database.
+    Table comparison is achieved by creating a 'diff_table' out of changes between two
+    different related tables based on given keys and what columns to focus on.
+    Table Differ then conducts various reports on the contents of the 'diff_table'
+    and prints them to the CLI.
+
+    Table Differ picks up changes between the two tables as:
+        - any row that has changed values within selected columns
+        - any row that is missing information that exists in the other table
+        - any row that exists within one table but not within the other
+
+    Arguments that Table-Differ accepts:
+    # REQUIRED ARGUMENTS
+        -c --comparison_columns     specified columns to focus on
+        -i --ignore_columns         specified columns to ignore
+
+        note that while each argument can accept n number of values,
+        only one of the two can be used on any single run.
+
+    # SEMI-OPTIONAL ARGUMENTS
+        --configs                   a value of 'y' will signal to table differ to
+                                    source the next 3 values within a configs.yaml file
+                                    instead of from CLI arguments
+
+        --db_type                   specifies what type of database to connect to
+
+        --tables                    requires 2 arguments that are the names of the
+                                    initial and secondary tables used in the comparison
+
+        --key_columns               specifies the name or names of key columns used
+                                    to connect the two tables by
+
+    # OPTIONAL ARGUMENTS
+        --except_rows               signals Table Differ to ignore specific rows within
+                                    each table based on the value of their key column(s)
+
+        --logging_level             sets the logging level of Table Differ (default CRITICAL)
+
+        --print_tables              attempts to print both of the tables used in the comparison
+                                    to the CLI. This is only to be used with small tables and will
+                                    certainly cause issues when applied to very large tables
+"""
+
 # BUILT-INS
 import logging
 import argparse
@@ -28,6 +72,10 @@ def main():
 
 
 def get_args():
+    """ This builds the primary dictionary of arguments used through Table Differ,
+        and also sets the logging level to be used while running. The arguments
+        gathered come from passed in args through argparse and a config.yaml file
+    """
     parser = argparse.ArgumentParser(description="table comparison utility")
 
     # REQUIRED ARGUMENTS
@@ -90,6 +138,10 @@ def get_args():
     )
 
     def get_yaml():
+        """ Critical information is stored within the config.yaml file
+            and this retrieves it and stores it in an accessable way
+            as 'yaml_config'
+        """
         with open("config.yaml") as stream:
             try:
                 yaml_config = yaml.safe_load(stream)
@@ -157,6 +209,9 @@ def setup_logging(logging_level):
 
 
 def create_connection(args):
+    """ Attempts to connect to database using SQLAlchemy and a URL that is pieced together from
+        components in config.yaml
+    """
     password = input("password: ")
 
     def create_url():
