@@ -119,7 +119,17 @@ class QueryPieces:
         """
         db = self.args["db_type"]
         if db == "postgess":
-            raise NotImplementedError("postgres not supported yet")
+            schema = self.conn.execute(
+                text(f"""
+                    SELECT *
+                    FROM information_schema.columns
+                    WHERE table_schema = {self.args["personal_schema"]}
+                    AND
+                    table_name = {self.args["table_initial"]}
+                """)
+            )
+            # this is potentially returning a more complicated list than just
+            # column names. Ex: columns names, data type, other macro data
         elif db == "sqlite":
             schema = self.conn.execute(
                 text(f"""PRAGMA table_info({self.args['table_initial']})""")
@@ -132,7 +142,7 @@ class QueryPieces:
         col_names = []
         for row in schema:
             col_names.append(row[1])
-        self.args["schema"] = col_names
+        self.args["col_names"] = col_names
 
 
 class Tables:
@@ -147,7 +157,7 @@ class Tables:
         self.conn = conn
         self.tables = ["A", "B"]
 
-    def create_dif f_table(self):
+    def create_diff_table(self):
         pieces = QueryPieces(self.args, self.conn)
 
         select_args = pieces._select_args_universal()
@@ -201,7 +211,7 @@ class Tables:
         try:
             logging.debug(f"[bold red]Diff Query[/]: {query}")
             logging.debug(f"[bold red]Select Arg[/]: {select_args}")
-            logging.debug(f'[bold red]Schema[/]: {self.args["schema"]}')
+            logging.debug(f'[bold red]Col_Names[/]: {self.args["col_names"]}')
             logging.debug(f"[bold red]Key Join[/]: {key_join}")
             logging.debug(f"[bold red]Except Rows[/]: {except_rows}")
 

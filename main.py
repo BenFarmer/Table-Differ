@@ -136,6 +136,12 @@ def get_args():
         default=["n"],
         help="prints the tables to the console, use at your own risk",
     )
+    parser.add_argument(
+        "--local_db",
+        choices=["y", 'n'],
+        default=['n'],
+        help="designates whether or not to use a local sourced database"
+    )
 
     def get_yaml():
         """ Critical information is stored within the config.yaml file
@@ -180,6 +186,7 @@ def get_args():
             "key_columns": key_columns,
             "comp_columns": args.comparison_columns,
             "ignore_columns": args.ignore_columns,
+            "personal_schema": yaml_config["personal_schema"],
             "initial_table_name": yaml_config["initial_table_name"],
             "secondary_table_name": yaml_config["secondary_table_name"],
             "print_tables": args.print_tables,
@@ -197,7 +204,7 @@ def get_args():
 
 def setup_logging(logging_level):
     log_level = str(logging_level).upper()
-    rprint(f"[bold red blink]Current Log Level: {log_level}")
+    rprint(f"[bold red]Current Log Level:[bold red blink] {log_level}")
 
     FORMAT = "%(message)s"
     logging.basicConfig(
@@ -212,12 +219,10 @@ def create_connection(args):
     """ Attempts to connect to database using SQLAlchemy and a URL that is pieced together from
         components in config.yaml
     """
-    password = input("password: ")
-
     def create_url():
         db_url = None
         if args["db_type"] == "postgres":
-            db_url = f'postgresql://{args["db_user"]}:{password}@{args["db_host"]}:{args["db_port"]}/{args["db_name"]}'
+            db_url = f'postgresql+pyscopg2://{args["db_user"]}:{password}@{args["db_host"]}:{args["db_port"]}/{args["db_name"]}'
         elif args["db_type"] == "mysql":
             db_url = f'mysql+pymysql://{args["db_user"]}:{password}@{args["db_host"]}:{args["db_port"]}/{args["db_name"]}'
         elif args["db_type"] == "sqlite":

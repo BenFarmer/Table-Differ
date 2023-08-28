@@ -2,13 +2,17 @@
 name = "table-differ"
 version = "0.1.0"
 description = ""
-authors = ["Benjamin Farmer <benjaminrfarmer@gmail.com>"]
+license = "MIT"
+authors = ["Benjamin Farmer <benjamin@sanjuandata.com>"]
 readme = "README.md"
 packages = [{include = "table_differ"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
 logging = "^0.4.9.6"
+sqlite3 = "3.36.0"
+rich = "13.5.2"
+sqlalchemy = "2.0.20"
 
 
 [build-system]
