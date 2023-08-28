@@ -6,7 +6,8 @@ db_user: 'myusername'
 db_type: 'sqlite'
 table_initial: 'table_a'
 table_secondary: 'table_b'
-key_columns: ['1']
+key_columns: ['key_1, key_2']
+personal_schema: ['col1', 'col2', 'col3']
 
 initial_table_name: 'origin'
 secondary_table_name: 'comparison'
