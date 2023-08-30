@@ -53,43 +53,77 @@ While running Table Differ is very straightforward, there are a few important no
 The developement of Table Differ focuses on making a product that is as flexible and adaptable as possible, and because of this uses several potential arguments.
 
 **Required Arguments**
-|**Argument**     |Description|
-|---------------------------|-----------|
-|-c --comparison_columns    |columns to be specifically compared (columns not specified will **not** be looked at when creating the diff_table). This field takes n number of arguments. |
-|**OR**                     |
-| -i --ignore_columns       |columns to be specifically ignored (columns not specified **will** be looked at when creating the diff_table). This field takes n number of arguments. |
+```
+-c --comparison_columns     columns to be specifically compared.
+                            (columns not specified will **not** be looked at when creating the diff_table).
+                            This field takes n number of arguments.
 
+**OR**
+
+ -i --ignore_columns        columns to be specifically ignored.
+                            (columns not specified **will** be looked at when creating the diff_table).
+                            This field takes n number of arguments.
+```
 
 **Semi-Required Arguments** (arguments that are needed unless specified through the --configs argument)
-|**Argument**|Description|Choices|Default|
-|---------------------------|-----------|-------|-------|
-|--configs                  |This exists as an option to supply the db_type, table names, and key columns, through a config.yaml file instead of as arguments. A 'y' will use the yaml file.|y, n|n|
-|--db_type                  |The type of database that Table Differ will attempt to connect to.|sqlite, postgres, mysql, duckdb||
-|--tables                   |Tables by name to be used in comparison and creation of diff_table. The first name will always be the initial table, and the latter will be the secondary table. This field takes 2 arguments| | |
-|--key_columns              |Key Columns to track rows by within **both** tables. This field takes n number of arguments| | |
+```
+    --configs               This exists as an option to supply the db_type, table names, and key columns,
+                                through a config.yaml file instead of as arguments.
+                            A 'y' will use the yaml file.
+
+    --db_type               The type of database that Table Differ will attempt to connect to.
+                            Supported DBs: sqlite, postgres, mysql, duckdb
+                            (mysql, duckdb: not yet implemented)
+
+-t  --tables                Tables by name to be used in comparison and creation of diff_table.
+                            The first name will always be the initial table, and the latter will be the secondary table.
+                            This field takes 2 arguments
+
+-k   --key_columns          Key Columns to track rows by within **both** tables.
+                            This field takes n number of arguments
+```
 
 
 **Optional Arguments**
-|**Argument**|Description|Choices|Default|
-|----------------------|-----------|-------|-------|
-|--except_rows         |Rows to be excluded from the creation of diff_table by their key. This exists in case you would like to skip over a known outlier. This field take n number of arguments.| | |
-|--logging_level       |Sets the logging level of Table Differ.|debug, info, warning, error, critical|warning|
-|--print_tables        |Prints the tables used in the creation of the diff_table to the console using [rich](https://rich.readthedocs.io/en/stable/introduction.html). This is primarily useful in testing and usages on very small tables.|y, n|n|
+```
+    --except_rows         Rows to be excluded from the creation of diff_table by their key.
+                          This exists in case you would like to skip over a specific row.
+                          This field take n number of arguments.
+
+-l  --logging_level       Sets the logging level of Table Differ.|debug, info, warning, error, critical|warning|
+
+-p  --print_tables        Prints the tables used in the creation of the diff_table to the console using Rich
+                          This is useful in testing and should be used only on very small tables.
+```
 
 **Configs** (stored within the configs.yaml file)
-|**Config Name**|Description|
-|---------------|-----------|
-|db_host|Hosting URL for database being used.|
-|db_port|Port number for database connection.|
-|db_name|Name of database being connected to.|
-|db_user|Username of user for database.|
-|db_type|Type of database being connected to.|
-|table_initial|Name of the first table that will be used to create the diff_table. This can be supplied either here in the config file or as an argument if the --configs argument is set to 'n'.|
-|table_secondary|Name of the second table that will be used to create the diff_table. This can be supplied either here in the config file or as an argument if the --configs argument is set to 'n'.|
-|key_columns|Key columns that Table Differ will query the selected tables by. This can be supplied either here in the config file or as an argument if the --configs argument is set to 'n'. This accepts n number of fields|
-|initial_table_name|Placeholder name of the first table being queried in creation of the diff_table. Default is set to 'origin'.|
-|secondary_table_name|Placeholder name of the second table being queried in creation of the diff_table.|
+```
+db_host                  Hosting URL for database being used.
 
+db_port                  Port number for database connection.
+
+db_name                  Name of database being connected to.
+
+db_user                  Username of user for database.
+
+db_type                  Type of database being connected to.
+
+table_initial            Name of the first table that will be used to create the diff_table.
+                          This can be supplied either here in the config file or as an argument if the --configs argument is set to 'n'.
+
+table_secondary          Name of the second table that will be used to create the diff_table.
+                          This can be supplied either here in the config file or as an argument if the --configs argument is set to 'n'.
+
+key_columns              Key columns that Table Differ will query the selected tables by.
+                          This can be supplied either here in the config file or as an argument if the --configs argument is set to 'n'.
+                          This field accepts n number of fields
+
+initial_table_name       Placeholder name of the first table being queried in creation of the diff_table.
+                          Default is set to 'origin'.
+
+secondary_table_name     Placeholder name of the second table being queried in creation of the diff_table.
+                          Default is set to 'comparison'.
+```
 ### Use Cases of Table Differ
 While Table Differ obviously works very well at comparing a history of a single table, it is not limited to just that. Because of the emphasis on flexibility and usability, Table Differ is designed to be used in any case where you need to see the specific differences between two tables within a database.
 
