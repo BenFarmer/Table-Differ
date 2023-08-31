@@ -25,21 +25,21 @@
                                     source the next 3 values within a configs.yaml file
                                     instead of from CLI arguments
 
-        --db_type                   specifies what type of database to connect to
+        -d --db_type                   specifies what type of database to connect to
 
-        --tables                    requires 2 arguments that are the names of the
+        -t --tables                 requires 2 arguments that are the names of the
                                     initial and secondary tables used in the comparison
 
-        --key_columns               specifies the name or names of key columns used
+        -k --key_columns            specifies the name or names of key columns used
                                     to connect the two tables by
 
     # OPTIONAL ARGUMENTS
-        --except_rows               signals Table Differ to ignore specific rows within
+        -e --except_rows               signals Table Differ to ignore specific rows within
                                     each table based on the value of their key column(s)
 
-        --logging_level             sets the logging level of Table Differ (default CRITICAL)
+        -l --logging_level          sets the logging level of Table Differ (default CRITICAL)
 
-        --print_tables              attempts to print both of the tables used in the comparison
+        -p --print_tables           attempts to print both of the tables used in the comparison
                                     to the CLI. This is only to be used with small tables and will
                                     certainly cause issues when applied to very large tables
 """
@@ -48,6 +48,7 @@
 import logging
 import argparse
 import yaml
+from os.path import expanduser
 
 # THIRD PARTY
 from rich import print as rprint
@@ -103,34 +104,39 @@ def get_args():
         help="would you like to use the additional variables stored in cfg",
     )
     parser.add_argument(
+        "-d",
         "--db_type",
         choices=["postgres", "mysql", "sqlite", "duckdb"],
         help="database type",
     )
     parser.add_argument(
+        "-t",
         "--tables",
         nargs=2,
         type=str,
         help="two tables used in comparison, the first one will be refered to as the inital or origin table",
     )
     parser.add_argument(
-        "--key_columns", nargs="+", action="store", help="key columns to track"
+        "-k", "--key_columns", nargs="+", action="store", help="key columns to track"
     )
 
     # OPTIONAL ARGUMENTS
     parser.add_argument(
+        "-e",
         "--except_rows",
         nargs="+",
         action="store",
         help="potential rows to be excluded from diff_table. These should be key column values",
     )
     parser.add_argument(
+        "-l",
         "--logging_level",
         default="warning",
         choices=["debug", "info", "warning", "error", "critical"],
         help="logging output level: debug, info, warning, error, critical",
     )
     parser.add_argument(
+        "-p",
         "--print_tables",
         choices=["y", "n"],
         default=["n"],
@@ -222,7 +228,10 @@ def create_connection(args):
     def create_url():
         db_url = None
         if args["db_type"] == "postgres":
-            db_url = f'postgresql+pyscopg2://{args["db_user"]}:{password}@{args["db_host"]}:{args["db_port"]}/{args["db_name"]}'
+            with open(expanduser('~/.pgpass'), 'r') as f:
+                host, port, database, user, password = f.read().split(':')
+            db_url = 'postgresql+pyscopg2://{:{}@{}:{}/{}'.format(user, password, host, port, database)
+
         elif args["db_type"] == "mysql":
             db_url = f'mysql+pymysql://{args["db_user"]}:{password}@{args["db_host"]}:{args["db_port"]}/{args["db_name"]}'
         elif args["db_type"] == "sqlite":
