@@ -52,6 +52,11 @@ While running Table Differ is very straightforward, there are a few important no
 ### Arguments and Configs
 The developement of Table Differ focuses on making a product that is as flexible and adaptable as possible, and because of this uses several potential arguments.
 
+**Example Run of Table-Differ**
+```
+./main.py -c <col_1> <col_2> <col_n> -d <database> -t <first_table> <second_table> -k <key_col> -l <log_level>
+```
+
 **Required Arguments**
 ```
 -c --comparison_columns     columns to be specifically compared.
@@ -98,30 +103,32 @@ The developement of Table Differ focuses on making a product that is as flexible
 
 **Configs** (stored within the configs.yaml file)
 ```
-db_host                  Hosting URL for database being used.
+db_host                   Hosting URL for database being used.
 
-db_port                  Port number for database connection.
+db_port                   Port number for database connection.
 
-db_name                  Name of database being connected to.
+db_name                   Name of database being connected to.
 
-db_user                  Username of user for database.
+db_user                   Username of user for database.
 
-db_type                  Type of database being connected to.
+db_type                   Type of database being connected to.
 
-table_initial            Name of the first table that will be used to create the diff_table.
+table_initial             Name of the first table that will be used to create the diff_table.
                           This can be supplied either here in the config file or as an argument if the --configs argument is set to 'n'.
 
-table_secondary          Name of the second table that will be used to create the diff_table.
+table_secondary           Name of the second table that will be used to create the diff_table.
                           This can be supplied either here in the config file or as an argument if the --configs argument is set to 'n'.
 
-key_columns              Key columns that Table Differ will query the selected tables by.
+key_columns               Key columns that Table Differ will query the selected tables by.
                           This can be supplied either here in the config file or as an argument if the --configs argument is set to 'n'.
                           This field accepts n number of fields
 
-initial_table_name       Placeholder name of the first table being queried in creation of the diff_table.
+personal_schema           Schema of tables being used in Table-Differ.
+
+initial_table_name        Placeholder name of the first table being queried in creation of the diff_table.
                           Default is set to 'origin'.
 
-secondary_table_name     Placeholder name of the second table being queried in creation of the diff_table.
+secondary_table_name      Placeholder name of the second table being queried in creation of the diff_table.
                           Default is set to 'comparison'.
 ```
 ### Use Cases of Table Differ
