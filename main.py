@@ -230,7 +230,7 @@ def create_connection(args):
         if args["db_type"] == "postgres":
             with open(expanduser('~/.pgpass'), 'r') as f:
                 host, port, database, user, password = f.read().split(':')
-            db_url = 'postgresql+pyscopg2://{:{}@{}:{}/{}'.format(user, password, host, port, database)
+            db_url = 'postgresql+pyscopg2://{}:{}@{}:{}/{}'.format(user, password, host, port, database)
 
         elif args["db_type"] == "mysql":
             db_url = f'mysql+pymysql://{args["db_user"]}:{password}@{args["db_host"]}:{args["db_port"]}/{args["db_name"]}'
