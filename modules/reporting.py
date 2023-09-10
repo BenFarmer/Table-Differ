@@ -34,32 +34,39 @@ class Reports:
     def __init__(self, conn, args):
         self.conn = conn
         self.args = args
-
         self.console = Console()  # rich text output formatting
-        self.reports = {}
-        self._counts()
+        self.arg_table = None
+        self.report_table = None
+        self.reports = {
+            "tables": {
+                },
+            "diff_table": {
+                },
+            }
+        self.report()
 
-    def _counts(self):
+    def report(self):
+        self.counts()
+        self.build_tables()
+        dicts = self.args, self.reports
+        tables = self.arg_table, self.report_table
+        for i, d in enumerate(dicts):
+            self.populate_tables(d, tables[i])
+            self.console.print(tables[i])
+        self.print_tables()
+
+
+    def counts(self):
         def count_rows():
-            counts_origin = self.conn.execute(
-                text(f"""SELECT COUNT(*) FROM {self.args['table_initial']}""")
+            query = self.conn.execute(
+                text(f"""SELECT COUNT(*) FROM {self.args["table_info"]['table_initial']}""")
             )
-            for count in counts_origin:
-                self.reports[f'rows in {self.args["table_initial"]}'] = f"{count[0]}"
-
-            counts_comp = self.conn.execute(
-                text(f"""SELECT COUNT(*) FROM {self.args['table_secondary']}""")
-            )
-            for count in counts_comp:
-                self.reports[f'rows in {self.args["table_secondary"]}'] = f"{count[0]}"
-
-            counts_diff = self.conn.execute(text("""SELECT COUNT(*) FROM diff_table"""))
-            for count in counts_diff:
-                self.reports["rows in diff_table"] = count[0]
+            for result in query:
+                self.reports["tables"][f"{self.args['table_info']['table_initial']} total rows"] = result[0]
 
         def count_same_rows():
             comp_string = ""
-            for num, col in enumerate(self.args["comp_columns"]):
+            for num, col in enumerate(self.args["table_info"]["comp_columns"]):
                 if num == 0:
                     comp_string += f"A.{col} = B.{col}"
                 else:
@@ -71,14 +78,14 @@ class Reports:
                 SELECT COUNT(*)
                 FROM (
                     SELECT *
-                    FROM {self.args['table_initial']} A
-                        INNER JOIN {self.args['table_secondary']} B
+                    FROM {self.args["table_info"]['table_initial']} A
+                        INNER JOIN {self.args["table_info"]['table_secondary']} B
                         ON {comp_string})
                     """
                 )
             )
-            for count in query:
-                self.reports["same rows between both tables"] = count[0]
+            for result in query:
+                self.reports["tables"]["same rows between both tables"] = result[0]
 
         def count_modified_rows():
             query = self.conn.execute(
@@ -87,97 +94,85 @@ class Reports:
                 SELECT COUNT(*)
                 FROM (
                     SELECT *
-                    FROM {self.args['table_secondary']}
+                    FROM {self.args["table_info"]['table_initial']}
                     EXCEPT
                     SELECT *
-                    FROM {self.args['table_initial']}
+                    FROM {self.args["table_info"]['table_secondary']}
                     )
                 """
                 )
             )
             for count in query:
-                self.reports["modified rows"] = count[0]
-
-        def cols_by_changes():
-            self.reports["rows with the most changes"] = "not yet implemented"
+                self.reports["diff_table"]["modified rows between both tables"] = count[0]
 
         try:
             count_rows()
             count_same_rows()
             count_modified_rows()
-            cols_by_changes()
 
         except OperationalError as e:
             logging.critical(f"[bold red blink]OPERATIONAL ERROR: [/] {e}")
         except NoSuchTableError as e:
             logging.critical(f"[bold red blink] NO SUCH TABLE ERROR: [/] {e}")
         finally:
+            logging.debug(f"[bold red] REPORTS GATHERED: [/]{self.reports}")
             self.conn.commit()
-            logging.debug(
-                f"[bold red] REPORTS GATHERED: [/]{self.reports}",
-            )
-            self.outputs()
 
-    def outputs(self):
+    def build_tables(self):
+        arg_table = Table(title="Arguments", caption="arguments used in Table Differ",)
+        arg_table.add_column("sub dictionary key", style="red", no_wrap=True)
+        arg_table.add_column("key", style="magenta", no_wrap=True)
+        arg_table.add_column("value", style="cyan", no_wrap=True)
+
+        report_table = Table(title="Reports", caption="Reports gathered",)
+        report_table.add_column("report focus", style="red", no_wrap=True)
+        report_table.add_column("report", style="magenta", no_wrap=True)
+        report_table.add_column("result", style="cyan", no_wrap=True)
+
+        self.arg_table = arg_table
+        self.report_table = report_table
+
+    def populate_tables(self, dictionary, table):
+        sub_dict_keys = list(dictionary)
+        for sub_dict in sub_dict_keys:
+            keys = list(dictionary[sub_dict])
+            for num, i in enumerate(keys):
+                value = list(dictionary[sub_dict].values())
+                if value[num] == value[0]:
+                    table.add_row(f"{sub_dict}", f"{i}", f"{value[num]}")
+                elif value[num] == value[-1]:
+                    table.add_row("", f"{i}", f"{value[num]}", end_section=True)
+                else:
+                    table.add_row("", f"{i}", f"{value[num]}")
+
+    def print_tables(self):
         """ Outputs all reports gathered onto the CLI using Rich Tables to
             improve readability.
         """
-        def print_tables():
-            self.args["tables"] = (
-                self.args["table_initial"],
-                self.args["table_secondary"],
-                "diff_table",
-            )
-            for table in self.args["tables"]:
+        # this needs to pull the unique schema for each table as it builds the table
+        # since the diff table will have a different schema from the other 2 tables
+        def raw_tables():
+            for table in self.args["table_info"]["tables"]:
                 try:
-                    info = self.conn.execute(
+                    query = self.conn.execute(
                         text(
                             f"""
                                 SELECT * FROM {table}
                                 """
                         )
                     )
-                    table_output = Table(title=f"{table}")
-                    col_names = self.args["schema"]
-
-                    if table == self.args["tables"][-1]:
-                        schema = self.conn.execute(
-                            text("""PRAGMA table_info(diff_table)""")
-                        )
-                        col_names = []
-                        for row in schema:
-                            col_names.append(row[1])
-
-                    for col in col_names:
-                        table_output.add_column(f"{col}", style="cyan", no_wrap=True)
-                    for row in info:
-                        table_output.add_row(*map(str, row))
-
-                    self.console.print(table_output)
+                    raw_table = Table(title=f"{table}")
+                    for col in self.args["table_info"]["personal_schema"]:
+                        raw_table.add_column(f"{col}_{table}", style="cyan", no_wrap=True)
+                    for result in query:
+                        raw_table.add_row(*map(str, result))
                 except OperationalError as e:
                     logging.critical(e)
                 except OperationalError as e:
                     logging.critical(e)
+                finally:
+                    self.console.print(raw_table)
 
-        if self.args["print_tables"] == "y":
-            if (
-                Prompt.ask(
-                    "[bold red]are you sure you want to print tables to the console? (y/n)"
-                )
-                == "y"
-            ):
-                print_tables()
-
-        report_table = Table(title="REPORTS")
-        report_table.add_column("report", justify="right", style="cyan", no_wrap=True)
-        report_table.add_column("result", style="magenta")
-
-        values = list(self.args.values())
-        for num, key in enumerate(self.args):
-            report_table.add_row(f"{key}", f"{values[num]}")
-
-        for num, report in enumerate(self.reports):
-            report_table.add_row(
-                f"{report}", f"{self.reports[report]}", style="Bold Red"
-            )
-        self.console.print(report_table)
+        if self.args["system"]["print_tables"] == "y":
+            if Prompt.ask("[bold red]are you sure you want to print tables to the console? (y/n)")== "y":
+                raw_tables()
