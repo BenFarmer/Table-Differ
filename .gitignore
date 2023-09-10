@@ -1,0 +1,6 @@
+.flake8
+.pre-commit-config.yaml
+:mydatabse:
+poetry.lock
+requirements.txt
+

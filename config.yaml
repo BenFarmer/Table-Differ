@@ -4,10 +4,12 @@ db_name: 'mydatabase'
 db_user: 'myusername'
 
 db_type: 'sqlite'
-table_initial: 'table_a'
-table_secondary: 'table_b'
-key_columns: ['key_1, key_2']
-personal_schema: ['col1', 'col2', 'col3']
+db_path: 'sqlite:///databases/Sqlite_test.db'
+table_initial: 'testing_0' #'table_a'
+table_secondary: 'testing_1' #'table_b'
+diff_table: '__diff_table__'
+key_columns: ['id']
+personal_schema: ['id', 'code_1', 'code_2', 'name_1', 'name_2', 'description']
 
 initial_table_name: 'origin'
 secondary_table_name: 'comparison'

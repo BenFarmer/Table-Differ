@@ -27,8 +27,10 @@
 
         -d --db_type                   specifies what type of database to connect to
 
-        -t --tables                 requires 2 arguments that are the names of the
-                                    initial and secondary tables used in the comparison
+        -t --tables                 requires 3 arguments that are the names of the
+                                    initial and secondary table to be used in table-differ
+                                    along with the name that would like to use for the 
+                                    diff_table that will be created.
 
         -k --key_columns            specifies the name or names of key columns used
                                     to connect the two tables by
@@ -112,9 +114,9 @@ def get_args():
     parser.add_argument(
         "-t",
         "--tables",
-        nargs=2,
+        nargs=3,
         type=str,
-        help="two tables used in comparison, the first one will be refered to as the inital or origin table",
+        help="names of the 2 tables used in table-differ followed by the name for the diff_table",
     )
     parser.add_argument(
         "-k", "--key_columns", nargs="+", action="store", help="key columns to track"
@@ -168,7 +170,7 @@ def get_args():
             table_initial = yaml_config["table_initial"]
             table_secondary = yaml_config["table_secondary"]
             key_columns = yaml_config["key_columns"]
-            tables = [yaml_config["table_initial"], yaml_config["table_secondary"]]
+            tables = [yaml_config["table_initial"], yaml_config["table_secondary"], yaml_config["diff_table"]]
         else:
             db_type = args.db_type
             table_initial = args.tables[0]
@@ -181,23 +183,31 @@ def get_args():
             column_type = "ignore"
 
         arg_dict = {
-            "db_host": yaml_config["db_host"],
-            "db_port": yaml_config["db_port"],
-            "db_name": yaml_config["db_name"],
-            "db_user": yaml_config["db_user"],
-            "db_type": db_type,
-            "tables": tables,
-            "table_initial": table_initial,
-            "table_secondary": table_secondary,
-            "key_columns": key_columns,
-            "comp_columns": args.comparison_columns,
-            "ignore_columns": args.ignore_columns,
-            "personal_schema": yaml_config["personal_schema"],
-            "initial_table_name": yaml_config["initial_table_name"],
-            "secondary_table_name": yaml_config["secondary_table_name"],
-            "print_tables": args.print_tables,
-            "column_type": column_type,
-            "except_rows": args.except_rows,
+            "database": {
+                "db_host": yaml_config["db_host"],
+                "db_port": yaml_config["db_port"],
+                "db_name": yaml_config["db_name"],
+                "db_user": yaml_config["db_user"],
+                "db_type": db_type,
+                "db_path": yaml_config["db_path"],
+                },
+            "table_info": {
+                "table_initial": table_initial,
+                "table_secondary": table_secondary,
+                "tables": tables,
+                "personal_schema": yaml_config["personal_schema"],
+                "key_columns": key_columns,
+                "comp_columns": args.comparison_columns,
+                "ignore_columns": args.ignore_columns,
+                "initial_table_name": yaml_config["initial_table_name"],
+                "secondary_table_name": yaml_config["secondary_table_name"],
+                "except_rows": args.except_rows,
+                },
+            "system": {
+                "local_db": args.local_db,
+                "print_tables": args.print_tables,
+                "column_type": column_type,
+                },
         }
         logging.info(f"[bold red]ARGUMENTS USED:[/]  {arg_dict}")
         return arg_dict
@@ -226,32 +236,43 @@ def create_connection(args):
         components in config.yaml
     """
     def create_url():
+        # build into try accept block - links to documentation
         db_url = None
-        if args["db_type"] == "postgres":
-            with open(expanduser('~/.pgpass'), 'r') as f:
-                host, port, database, user, password = f.read().split(':')
-            db_url = 'postgresql+pyscopg2://{}:{}@{}:{}/{}'.format(user, password, host, port, database)
+        try:
+            if args["database"]["db_type"] == "postgres":
+                with open(expanduser('~/.pgpass'), 'r') as f:
+                    host, port, database, user, password = f.read().split(':')
+                db_url = 'postgresql+pyscopg2://{}:{}@{}:{}/{}'.format(user, password, host, port, database)
 
-        elif args["db_type"] == "mysql":
-            db_url = f'mysql+pymysql://{args["db_user"]}:{password}@{args["db_host"]}:{args["db_port"]}/{args["db_name"]}'
-        elif args["db_type"] == "sqlite":
-            db_url = f'sqlite+pysqlite:///:{args["db_name"]}:'
-        elif args["db_type"] == "duckdb":
-            raise NotImplementedError("duckdb not supported yet")
-        logging.info(
-            f"[bold red]CONNECTION DETAILS:[/] db_host: {args['db_host']}, db_port: {args['db_port']}, db_name: {args['db_name']}, db_user: {args['db_user']}, db_url: {db_url}",
-        )
-        return db_url
+            elif args["database"]["db_type"] == "mysql":
+                with open(expanduser('~/.my.cnf'), 'r') as f:
+                    host, port, database, user, password = f.read().split(':')
+                db_url = 'mysql+pymysql://{}:{}@{}:{}/{}'.format(user, password, host, port, dataabase)
 
-    db_url = create_url()
-    logging.info(f"[bold red] DATABASE URL:[/] {db_url}")
+            elif args["database"]["db_type"] == "sqlite":
+                db_url = f'sqlite+pysqlite:///:{args["db_name"]}:'
+            elif args["database"]["db_type"] == "duckdb":
+                raise NotImplementedError("duckdb not supported yet")
+        except OSError:
+            print("could not open/read file", f)
+            sys.exit()
+        finally:
+            logging.info(f"[bold red] DATABASE URL:[/] {db_url}")
+            return db_url
+
+    if args["system"]["local_db"] == 'y':
+        db_url = args["database"]["db_path"]
+    else:
+        db_url = create_url()
+    db_url = "sqlite:///databases/Sqlite_test.db"
     try:
         engine = create_engine(db_url, echo=False, future=True)
         conn = engine.connect()
-        logging.info(f"[bold red]CURRENT CONNECTION:[/]  {conn}")
-        return conn
     except SQLAlchemyError as e:
         print(f"ERROR: {str(e)}")
+    finally:
+        logging.info(f"[bold red]CURRENT CONNECTION:[/]  {conn}")
+        return conn
 
 
 if __name__ == "__main__":
