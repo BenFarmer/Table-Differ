@@ -31,6 +31,7 @@ The following databases are in the process of being supported:
   - diff_table capabilities
 3. ### [Credits](#credits_contents)
 4. ### [License](#license_contents)
+
 ---
 
 
@@ -42,13 +43,19 @@ While running Table Differ is very straightforward, there are a few important no
 
 1. Table Differ will attempt to create a new table within the database that it is pulling the two comparison tables from. Depending on your pipeline this could potentially cause issues.
 
-2. When Table Differ runs, it will attempt to drop any table it can find named 'diff_table' before it creates it's version of the table.
-
-**IF YOU HAVE A TABLE WITHIN YOUR DATABASE NAMED diff_table, IT WILL BE DROPPED BY TABLE DIFFER**
+2. When Table Differ runs, it will attempt to drop any table it can find that uses the same name of the diff table before it creates it's version of the table. The default name of the diff table is "__ diff_table __", but can be changed from within the config.yaml file.
 
 3. After Table Differ is finished running, it does not drop the table that it has created within your database, and only drops that table at the beginning of the next run so that the diff table can be queried if needed between usages.
 
+---
+
 ### Connecting to a Database
+Depending on the database that Table-Differ will attempt to connect to, the process of connection may be slightly different.
+If using PostgreSQL or MySQL , Table-Differ will automatically search for a .pgpass or .my.cnf file for the required connection details.
+If using a database locally, Table-Differ accepts an additional optional requirement to use a directory pathing that is pulled from the config.yaml file.
+
+---
+
 ### Arguments and Configs
 The developement of Table Differ focuses on making a product that is as flexible and adaptable as possible, and because of this uses several potential arguments.
 
@@ -56,6 +63,7 @@ The developement of Table Differ focuses on making a product that is as flexible
 ```
 ./main.py -c <col_1> <col_2> <col_n> -d <database> -t <first_table> <second_table> -k <key_col> -l <log_level>
 ```
+
 
 **Required Arguments**
 ```
@@ -119,6 +127,8 @@ table_initial             Name of the first table that will be used to create th
 table_secondary           Name of the second table that will be used to create the diff_table.
                           This can be supplied either here in the config file or as an argument if the --configs argument is set to 'n'.
 
+diff_table                Value that Table-Differ will name the created diff table as. Default is __diff_table__.
+
 key_columns               Key columns that Table Differ will query the selected tables by.
                           This can be supplied either here in the config file or as an argument if the --configs argument is set to 'n'.
                           This field accepts n number of fields
@@ -131,8 +141,13 @@ initial_table_name        Placeholder name of the first table being queried in c
 secondary_table_name      Placeholder name of the second table being queried in creation of the diff_table.
                           Default is set to 'comparison'.
 ```
+
+---
+
 ### Use Cases of Table Differ
 While Table Differ obviously works very well at comparing a history of a single table, it is not limited to just that. Because of the emphasis on flexibility and usability, Table Differ is designed to be used in any case where you need to see the specific differences between two tables within a database.
+
+---
 
 ## diff_table capabilities
 Rows that are included into the diff_table have to meet specific conditions:
@@ -141,6 +156,8 @@ Rows that are included into the diff_table have to meet specific conditions:
 3. Rows that exist in the secondary table but not in the initial
 Note that all rows are compared based on given key columns, and only columns specified (or in the case of ignored columns, not specified) will be looked into for changed.
 If a change on a row exists but in a column not specified, it will not be added to the diff_table based on that change.
+
+---
 
 # CREDITS <a name="credits_contents"></a>
 1. Benjamin Farmer - San Juan Data LLC. (2023)
