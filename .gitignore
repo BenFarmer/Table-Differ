@@ -3,4 +3,5 @@
 :mydatabse:
 poetry.lock
 requirements.txt
-
+:mydatabase:
+__pycache__

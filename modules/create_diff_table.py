@@ -39,7 +39,6 @@ class QueryPieces:
         self._get_schema()
         self.tables = ["A", "B"]
 
-
     def _select_args_universal(self):
         string = ""
         return string
@@ -55,10 +54,11 @@ class QueryPieces:
         if self.args["system"]["column_type"] == "comp":
             for table in self.tables:
                 for col in self.args["table_info"]["comp_columns"]:
-                    if table == "B" and col == self.args["table_info"]["comp_columns"][-1]:
-                        string += (
-                            f'{table}.{col} {self.args["table_info"]["secondary_table_name"]}_{col}'
-                        )
+                    if (
+                        table == "B"
+                        and col == self.args["table_info"]["comp_columns"][-1]
+                    ):
+                        string += f'{table}.{col} {self.args["table_info"]["secondary_table_name"]}_{col}'
                     else:
                         if table == "A":
                             string += f'{table}.{col} {self.args["table_info"]["initial_table_name"]}_{col}, '
@@ -122,19 +122,23 @@ class QueryPieces:
         db = self.args["database"]["db_type"]
         if db == "postgess":
             schema = self.conn.execute(
-                text(f"""
+                text(
+                    f"""
                     SELECT *
                     FROM information_schema.columns
                     WHERE table_schema = {self.args["personal_schema"]}
                     AND
                     table_name = {self.args["table_initial"]}
-                """)
+                """
+                )
             )
             # this is potentially returning a more complicated list than just
             # column names. Ex: columns names, data type, other macro data
         elif db == "sqlite":
             schema = self.conn.execute(
-                text(f"""PRAGMA table_info({self.args["table_info"]['table_initial']})""")
+                text(
+                    f"""PRAGMA table_info({self.args["table_info"]['table_initial']})"""
+                )
             )
         elif db == "duckdb":
             raise NotImplementedError("duckdb not supported yet")
@@ -165,7 +169,10 @@ class Tables:
         select_args = pieces._select_args_universal()
         key_join = pieces._key_join_universal()
         except_rows = pieces._except_rows_universal()
-        drop_diff_table = """DROP TABLE IF EXISTS diff_table"""
+        drop_diff_table = (
+            f"""DROP TABLE IF EXISTS {self.args["table_info"]["tables"][2]}"""
+        )
+        print(drop_diff_table)
 
         if self.args["database"]["db_type"] == "postgres":
             query = f"""
@@ -180,6 +187,7 @@ class Tables:
         elif self.args["database"]["db_type"] == "mysql":
             raise NotImplementedError("mysql not supported yet")
         elif self.args["database"]["db_type"] == "sqlite":
+            print(self.args["table_info"]["tables"][2])
             select_args = pieces._select_args_sqlite()
             query = f"""
                 CREATE TABLE IF NOT EXISTS {self.args["table_info"]["tables"][2]} AS
@@ -213,7 +221,9 @@ class Tables:
         try:
             logging.debug(f"[bold red]Diff Query[/]: {query}")
             logging.debug(f"[bold red]Select Arg[/]: {select_args}")
-            logging.debug(f'[bold red]Col_Names[/]: {self.args["table_info"]["col_names"]}')
+            logging.debug(
+                f'[bold red]Col_Names[/]: {self.args["table_info"]["col_names"]}'
+            )
             logging.debug(f"[bold red]Key Join[/]: {key_join}")
             logging.debug(f"[bold red]Except Rows[/]: {except_rows}")
 
