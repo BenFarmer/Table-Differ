@@ -40,10 +40,6 @@ class QueryPieces:
         self.tables = ["A", "B"]
 
     def _select_args_universal(self):
-        string = ""
-        return string
-
-    def _select_args_sqlite(self):
         """This pieces together the initial SELECT arguments for the __diff_table__ creation
         using the comparison or ignore columns given.
         """
@@ -67,6 +63,7 @@ class QueryPieces:
             return string
         else:
             # broken, needs fixing asap
+            # this is the section that covers the ignored cols
             for table in self.tables:
                 for col in self.args["schema"]:
                     if col not in self.args["ignore_columns"]:
@@ -169,10 +166,10 @@ class Tables:
         select_args = pieces._select_args_universal()
         key_join = pieces._key_join_universal()
         except_rows = pieces._except_rows_universal()
+
         drop_diff_table = (
             f"""DROP TABLE IF EXISTS {self.args["table_info"]["tables"][2]}"""
         )
-        print(drop_diff_table)
 
         if self.args["database"]["db_type"] == "postgres":
             query = f"""
@@ -184,11 +181,8 @@ class Tables:
                         ON {key_join}
                     {except_rows}
                 """
-        elif self.args["database"]["db_type"] == "mysql":
-            raise NotImplementedError("mysql not supported yet")
+
         elif self.args["database"]["db_type"] == "sqlite":
-            print(self.args["table_info"]["tables"][2])
-            select_args = pieces._select_args_sqlite()
             query = f"""
                 CREATE TABLE IF NOT EXISTS {self.args["table_info"]["tables"][2]} AS
                     SELECT
@@ -217,6 +211,8 @@ class Tables:
 
         elif self.args["database"]["db_type"] == "duckdb":
             raise NotImplementedError("duckdb not supported yet")
+        elif self.args["database"]["db_type"] == "mysql":
+            raise NotImplementedError("mysql not supported yet")
 
         try:
             logging.debug(f"[bold red]Diff Query[/]: {query}")
