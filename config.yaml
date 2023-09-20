@@ -4,7 +4,10 @@ db_name: 'mydatabase'
 db_user: 'myusername'
 
 db_type: 'sqlite'
-db_path: 'sqlite:///databases/Sqlite_test.db'
+  #db_path: 'sqlite:///databases/Sqlite_test.db'
+  # used for machine 1
+db_path: 'sqlite:///home/benjamin-farmer/Envs/sanjuandata/local_db/sqlite/Diff_test.db'
+  # used for machine 0
 table_initial: 'testing_0' #'table_a'
 table_secondary: 'testing_1' #'table_b'
 diff_table: '__diff_table__'
