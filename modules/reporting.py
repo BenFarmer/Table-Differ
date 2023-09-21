@@ -149,8 +149,6 @@ class Reports:
         """ Outputs all reports gathered onto the CLI using Rich Tables to
             improve readability.
         """
-        # this needs to pull the unique schema for each table as it builds the table
-        # since the diff table will have a different schema from the other 2 tables
         def raw_tables():
             for table in self.args["table_info"]["tables"]:
                 try:
@@ -162,10 +160,16 @@ class Reports:
                         )
                     )
                     raw_table = Table(title=f"{table}")
-                    for col in self.args["table_info"]["personal_schema"]:
-                        raw_table.add_column(f"{col}_{table}", style="cyan", no_wrap=True)
+                    if table == self.args["table_info"]["tables"][-1]:
+                        for col in self.args["table_info"]["diff_table_schema"]:
+                            raw_table.add_column(f"{col}_{table}", style="cyan", no_wrap=True)
+                    else:
+                        for col in self.args["table_info"]["table_schema"]:
+                            raw_table.add_column(f"{col}_{table}", style="cyan", no_wrap=True)
+
                     for result in query:
                         raw_table.add_row(*map(str, result))
+
                 except OperationalError as e:
                     logging.critical(e)
                 except OperationalError as e:
