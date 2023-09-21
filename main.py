@@ -196,6 +196,8 @@ def get_args():
                 "table_secondary": table_secondary,
                 "tables": tables,
                 "personal_schema": yaml_config["personal_schema"],
+                "table_schema": 'null',
+                "diff_table_schema": 'null',
                 "key_columns": key_columns,
                 "comp_columns": args.comparison_columns,
                 "ignore_columns": args.ignore_columns,
@@ -264,7 +266,7 @@ def create_connection(args):
         db_url = args["database"]["db_path"]
     else:
         db_url = create_url()
-    db_url = "sqlite:///databases/Sqlite_test.db"
+
     try:
         engine = create_engine(db_url, echo=False, future=True)
         conn = engine.connect()

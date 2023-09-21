@@ -36,7 +36,6 @@ class QueryPieces:
     def __init__(self, args, conn):
         self.args = args
         self.conn = conn
-        self._get_schema()
         self.tables = ["A", "B"]
 
     def _select_args_universal(self):
@@ -111,14 +110,27 @@ class QueryPieces:
                     string += """) AND """
         return string
 
+
+class Schemas:
+    def __init__(self, args, conn):
+        self.args = args
+        self.conn = conn
+        self._get_schema()
+
     def _get_schema(self):
         """This returns the column names within the two tables to be used in several parts of
         table_differ. The most important usage is within the sql builder functions where the
         names of columns are integral in order to properly piece together the arguments.
+        Active issues:
+            - there is copied code that may be used in every different
+                database version of the queries due to how different dbs
+                handle accessing a schema (specifically a schema that is not known)
+
+
         """
         db = self.args["database"]["db_type"]
         if db == "postgess":
-            schema = self.conn.execute(
+            table_schema = self.conn.execute(
                 text(
                     f"""
                     SELECT *
@@ -129,23 +141,53 @@ class QueryPieces:
                 """
                 )
             )
-            # this is potentially returning a more complicated list than just
-            # column names. Ex: columns names, data type, other macro data
+
+            diff_table_schema = self.conn.execute(
+                text(
+                    f"""
+                    SELECT schemaname, tablename,
+                            quote_ident(schemaname) || '.' || quote_ident(tablename)
+                    FROM pg_tables
+                    WHERE tablename = {self.args["table_info"]["tables"][-1]}
+                """
+                )
+            )
+
+            table = []
+            diff = []
+            for result in table_schema:
+                table.append(result)
+            for result in diff_table_schema:
+                table.append(result)
+
+
         elif db == "sqlite":
-            schema = self.conn.execute(
+            table_schema = self.conn.execute(
                 text(
                     f"""PRAGMA table_info({self.args["table_info"]['table_initial']})"""
                 )
             )
+
+            diff_table_schema = self.conn.execute(
+                text(
+                    f"""PRAGMA table_info({self.args["table_info"]['tables'][-1]})"""
+                )
+            )
+            table = []
+            diff = []
+            for result in table_schema:
+                table.append(result[1])
+            for result in diff_table_schema:
+                diff.append(result[1])
+
         elif db == "duckdb":
             raise NotImplementedError("duckdb not supported yet")
         elif db == "mysql":
             raise NotImplementedError("mysql not supported yet")
 
-        col_names = []
-        for row in schema:
-            col_names.append(row[1])
-        self.args["table_info"]["col_names"] = col_names
+        self.args["table_info"]["table_schema"] = table
+        self.args["table_info"]["diff_table_schema"] = diff
+
 
 
 class Tables:
@@ -217,14 +259,13 @@ class Tables:
         try:
             logging.debug(f"[bold red]Diff Query[/]: {query}")
             logging.debug(f"[bold red]Select Arg[/]: {select_args}")
-            logging.debug(
-                f'[bold red]Col_Names[/]: {self.args["table_info"]["col_names"]}'
-            )
             logging.debug(f"[bold red]Key Join[/]: {key_join}")
             logging.debug(f"[bold red]Except Rows[/]: {except_rows}")
 
             self.conn.execute(text(drop_diff_table))
             self.conn.execute(text(query))
+
+            Schemas(self.args, self.conn)
         except OperationalError as e:
             logging.critical(f"[bold red blink]OPERATIONAL ERROR:[/] {e}")
 
