@@ -61,18 +61,24 @@ class QueryPieces:
                             string += f'{table}.{col} {self.args["table_info"]["secondary_table_name"]}_{col}, '
             return string
         else:
-            # broken, needs fixing asap
             # this is the section that covers the ignored cols
             for table in self.tables:
-                for col in self.args["schema"]:
-                    if col not in self.args["ignore_columns"]:
-                        if table == "B" and col == self.args["schema"][-1]:
-                            string += f'{table}.{col} {self.args["secondary_table_name"]}_{col}'
+                for col in self.args["table_info"]["table_schema"]:
+                    if col not in self.args["table_info"]["ignore_columns"]:
+                        print(
+                            self.args["table_info"]["table_schema"][-1],
+                            "ignore cols clause",
+                        )
+                        if (
+                            table == "B"
+                            and col == self.args["table_info"]["table_schema"][-1]
+                        ):
+                            string += f'{table}.{col} {self.args["table_info"]["secondary_table_name"]}_{col}'
                         else:
                             if table == "A":
-                                string += f'{table}.{col} {self.args["initial_table_name"]}_{col}, '
+                                string += f'{table}.{col} {self.args["table_info"]["initial_table_name"]}_{col}, '
                             else:
-                                string += f'{table}.{col} {self.args["secondary_table_name"]}_{col}, '
+                                string += f'{table}.{col} {self.args["table_info"]["secondary_table_name"]}_{col}, '
             return string
 
     def _key_join_universal(self):
@@ -111,7 +117,7 @@ class QueryPieces:
         return string
 
 
-class Schemas:
+class GetSchemas:
     def __init__(self, args, conn):
         self.args = args
         self.conn = conn
@@ -160,7 +166,6 @@ class Schemas:
             for result in diff_table_schema:
                 table.append(result)
 
-
         elif db == "sqlite":
             table_schema = self.conn.execute(
                 text(
@@ -169,9 +174,7 @@ class Schemas:
             )
 
             diff_table_schema = self.conn.execute(
-                text(
-                    f"""PRAGMA table_info({self.args["table_info"]['tables'][-1]})"""
-                )
+                text(f"""PRAGMA table_info({self.args["table_info"]['tables'][-1]})""")
             )
             table = []
             diff = []
@@ -185,9 +188,20 @@ class Schemas:
         elif db == "mysql":
             raise NotImplementedError("mysql not supported yet")
 
+        #        print('table before', table)
+        #        print('comp_columns', self.args["table_info"]["comp_columns"])
+        try:
+            for col in self.args["table_info"]["ignore_columns"]:
+                table.remove(col)
+        except TypeError:
+            for col in table:
+                #                print('col',col)
+                if col not in self.args["table_info"]["comp_columns"]:
+                    table.remove(col)
+        #        print('table after', table)
+
         self.args["table_info"]["table_schema"] = table
         self.args["table_info"]["diff_table_schema"] = diff
-
 
 
 class Tables:
@@ -201,13 +215,12 @@ class Tables:
         self.args = args
         self.conn = conn
         self.tables = ["A", "B"]
+        self.pieces = QueryPieces(self.args, self.conn)
 
     def create_diff_table(self):
-        pieces = QueryPieces(self.args, self.conn)
-
-        select_args = pieces._select_args_universal()
-        key_join = pieces._key_join_universal()
-        except_rows = pieces._except_rows_universal()
+        select_args = self.pieces._select_args_universal()
+        key_join = self.pieces._key_join_universal()
+        except_rows = self.pieces._except_rows_universal()
 
         drop_diff_table = (
             f"""DROP TABLE IF EXISTS {self.args["table_info"]["tables"][2]}"""
@@ -265,7 +278,7 @@ class Tables:
             self.conn.execute(text(drop_diff_table))
             self.conn.execute(text(query))
 
-            Schemas(self.args, self.conn)
+            GetSchemas(self.args, self.conn)
         except OperationalError as e:
             logging.critical(f"[bold red blink]OPERATIONAL ERROR:[/] {e}")
 
