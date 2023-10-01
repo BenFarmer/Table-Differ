@@ -1,4 +1,4 @@
-#!/bin/env python
+#! usr/bin/env python
 
 """ create_diff_table handles all the aspects used in the creation of a 'diff_table'.
     This includes:

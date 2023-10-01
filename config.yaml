@@ -6,13 +6,13 @@ db_user: 'myusername'
 db_type: 'sqlite'
   #db_path: 'sqlite:///databases/Sqlite_test.db'
   # used for machine 1
-db_path: 'sqlite:///home/benjamin-farmer/Envs/sanjuandata/local_db/sqlite/Diff_test.db'
+db_path: 'sqlite:////home/benjamin-farmer/Envs/sanjuandata/local_db/sqlite/Diff_test.db'
   # used for machine 0
-table_initial: 'testing_0' #'table_a'
-table_secondary: 'testing_1' #'table_b'
-diff_table: '__diff_table__'
+table_initial: 'testing_initial'
+table_secondary: 'testing_secondary'
+diff_table: '__d__' # default to __diff_table))
 key_columns: ['id']
-personal_schema: ['id', 'code_1', 'code_2', 'name_1', 'name_2', 'description']
+personal_schema: ['id', 'tstr', 'tint', 'tbool', 'tvar', 'info']
 
 initial_table_name: 'origin'
 secondary_table_name: 'comparison'
