@@ -38,11 +38,9 @@ class Reports:
         self.arg_table = None
         self.report_table = None
         self.reports = {
-            "tables": {
-                },
-            "diff_table": {
-                },
-            }
+            "tables": {},
+            "diff_table": {},
+        }
         self.report()
 
     def report(self):
@@ -55,14 +53,17 @@ class Reports:
             self.console.print(tables[i])
         self.print_tables()
 
-
     def counts(self):
         def count_rows():
             query = self.conn.execute(
-                text(f"""SELECT COUNT(*) FROM {self.args["table_info"]['table_initial']}""")
+                text(
+                    f"""SELECT COUNT(*) FROM {self.args["table_info"]['table_initial']}"""
+                )
             )
             for result in query:
-                self.reports["tables"][f"{self.args['table_info']['table_initial']} total rows"] = result[0]
+                self.reports["tables"][
+                    f"{self.args['table_info']['table_initial']} total rows"
+                ] = result[0]
 
         def count_same_rows():
             comp_string = ""
@@ -103,11 +104,13 @@ class Reports:
                 )
             )
             for count in query:
-                self.reports["diff_table"]["modified rows between both tables"] = count[0]
+                self.reports["diff_table"]["modified rows between both tables"] = count[
+                    0
+                ]
 
         try:
             count_rows()
-            count_same_rows()
+            #            count_same_rows()
             count_modified_rows()
 
         except OperationalError as e:
@@ -119,12 +122,18 @@ class Reports:
             self.conn.commit()
 
     def build_tables(self):
-        arg_table = Table(title="Arguments", caption="arguments used in Table Differ",)
+        arg_table = Table(
+            title="Arguments",
+            caption="arguments used in Table Differ",
+        )
         arg_table.add_column("sub dictionary key", style="red", no_wrap=True)
         arg_table.add_column("key", style="magenta", no_wrap=True)
         arg_table.add_column("value", style="cyan", no_wrap=True)
 
-        report_table = Table(title="Reports", caption="Reports gathered",)
+        report_table = Table(
+            title="Reports",
+            caption="Reports gathered",
+        )
         report_table.add_column("report focus", style="red", no_wrap=True)
         report_table.add_column("report", style="magenta", no_wrap=True)
         report_table.add_column("result", style="cyan", no_wrap=True)
@@ -146,9 +155,10 @@ class Reports:
                     table.add_row("", f"{i}", f"{value[num]}")
 
     def print_tables(self):
-        """ Outputs all reports gathered onto the CLI using Rich Tables to
-            improve readability.
+        """Outputs all reports gathered onto the CLI using Rich Tables to
+        improve readability.
         """
+
         def raw_tables():
             for table in self.args["table_info"]["tables"]:
                 try:
@@ -162,10 +172,14 @@ class Reports:
                     raw_table = Table(title=f"{table}")
                     if table == self.args["table_info"]["tables"][-1]:
                         for col in self.args["table_info"]["diff_table_schema"]:
-                            raw_table.add_column(f"{col}_{table}", style="cyan", no_wrap=True)
+                            raw_table.add_column(
+                                f"{col}_{table}", style="cyan", no_wrap=True
+                            )
                     else:
                         for col in self.args["table_info"]["table_schema"]:
-                            raw_table.add_column(f"{col}_{table}", style="cyan", no_wrap=True)
+                            raw_table.add_column(
+                                f"{col}_{table}", style="cyan", no_wrap=True
+                            )
 
                     for result in query:
                         raw_table.add_row(*map(str, result))
@@ -178,5 +192,10 @@ class Reports:
                     self.console.print(raw_table)
 
         if self.args["system"]["print_tables"] == "y":
-            if Prompt.ask("[bold red]are you sure you want to print tables to the console? (y/n)")== "y":
+            if (
+                Prompt.ask(
+                    "[bold red]are you sure you want to print tables to the console? (y/n)"
+                )
+                == "y"
+            ):
                 raw_tables()
