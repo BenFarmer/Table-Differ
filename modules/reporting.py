@@ -1,4 +1,4 @@
-#!/bin/env python
+#! usr/bin/env python
 
 """ reporting handles all aspects of the various reports
     that Table Differ runs both on the 'diff_table' but also

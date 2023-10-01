@@ -1,4 +1,4 @@
-#!/bin/env python3
+#! usr/bin/env python3
 
 # long-help
 """ Table Differ: Table comparison utility to be used within a SQLite, PostgreSQL, MySQL, or DuckDB database.
