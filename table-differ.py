@@ -45,6 +45,9 @@
                                     to the CLI. This is only to be used with small tables and will
                                     certainly cause issues when applied to very large tables
 """
+# example testing run
+""" ./table-differ.py -i info --configs y -p y
+"""
 
 # BUILT-INS
 import logging
