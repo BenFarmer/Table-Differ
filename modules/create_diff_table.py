@@ -188,17 +188,13 @@ class GetSchemas:
         elif db == "mysql":
             raise NotImplementedError("mysql not supported yet")
 
-        #        print('table before', table)
-        #        print('comp_columns', self.args["table_info"]["comp_columns"])
         try:
             for col in self.args["table_info"]["ignore_columns"]:
                 table.remove(col)
         except TypeError:
             for col in table:
-                #                print('col',col)
                 if col not in self.args["table_info"]["comp_columns"]:
                     table.remove(col)
-        #        print('table after', table)
 
         self.args["table_info"]["table_schema"] = table
         self.args["table_info"]["diff_table_schema"] = diff
@@ -215,7 +211,8 @@ class Tables:
         self.args = args
         self.conn = conn
         self.tables = ["A", "B"]
-        self.pieces = QueryPieces(self.args, self.conn)
+        GetSchemas(args, conn)
+        self.pieces = QueryPieces(args, conn)
 
     def create_diff_table(self):
         select_args = self.pieces._select_args_universal()
