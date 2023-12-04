@@ -1,8 +1,5 @@
 #! /usr/bin/env python3
 
-"""
-    this is a copy from main and is not yet set up
-"""
 # BUILT-INS
 import logging
 import argparse
