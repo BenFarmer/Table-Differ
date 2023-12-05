@@ -191,7 +191,7 @@ class Reports:
                 finally:
                     self.console.print(raw_table)
 
-        if self.args["system"]["print_tables"] == "y":
+        if self.args["system"]["print_tables"] is True:
             if (
                 Prompt.ask(
                     "[bold red]are you sure you want to print tables to the console? (y/n)"
