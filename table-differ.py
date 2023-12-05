@@ -108,7 +108,7 @@ def create_connection(args):
             logging.info(f"[bold red] DATABASE URL:[/] {db_url}")
             return db_url
 
-    if args["system"]["local_db"] == "y":
+    if args["system"]["local_db"] is True:
         db_url = args["database"]["db_path"]
     else:
         db_url = create_url()

@@ -37,8 +37,8 @@ def get_args():
     # SEMI-REQUIRED ARGUMENTS
     parser.add_argument(
         "--configs",
-        choices=["y", "n"],
-        default=["n"],
+        action="store_true",
+        default=None,
         help="would you like to use the additional variables stored in cfg",
     )
     parser.add_argument(
@@ -76,14 +76,14 @@ def get_args():
     parser.add_argument(
         "-p",
         "--print_tables",
-        choices=["y", "n"],
-        default=["n"],
+        action="store_true",
+        default=None,
         help="prints the tables to the console, use at your own risk",
     )
     parser.add_argument(
         "--local_db",
-        choices=["y", "n"],
-        default=["n"],
+        action="store_true",
+        default=None,
         help="designates whether or not to use a local sourced database",
     )
 
@@ -101,7 +101,7 @@ def get_args():
                 return yaml_config
 
     def build_arg_dict(yaml_config):
-        if args.configs == "y":
+        if args.configs is True:
             db_type = yaml_config["db_type"]
             table_initial = yaml_config["table_initial"]
             table_secondary = yaml_config["table_secondary"]
