@@ -80,9 +80,11 @@ def create_connection(args):
     """
 
     def create_url():
-        # build into try accept block - links to documentation
         db_url = None
         try:
+            # bug with the postgres connection:
+            #   this automatically pulls the pgpass information
+            #   but still requires the same information from the config file
             if args["database"]["db_type"] == "postgres":
                 with open(expanduser("~/.pgpass"), "r") as f:
                     host, port, database, user, password = f.read().split(":")
@@ -99,6 +101,7 @@ def create_connection(args):
 
             elif args["database"]["db_type"] == "sqlite":
                 db_url = f'sqlite+pysqlite:///:{args["db_name"]}:'
+
             elif args["database"]["db_type"] == "duckdb":
                 raise NotImplementedError("duckdb not supported yet")
         except OSError:
