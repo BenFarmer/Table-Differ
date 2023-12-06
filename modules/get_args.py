@@ -21,14 +21,14 @@ def get_args():
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument(
         "-c",
-        "--comparison_columns",
+        "--comparison-columns",
         nargs="+",
         action="store",
         help="columns to be compared, mutually exclusive with ignore_columns",
     )
     group.add_argument(
         "-i",
-        "--ignore_columns",
+        "--ignore-columns",
         nargs="+",
         action="store",
         help="columns to not track/ignore, mutually exclusive with comparison_columns",
@@ -43,7 +43,7 @@ def get_args():
     )
     parser.add_argument(
         "-d",
-        "--db_type",
+        "--db-type",
         choices=["postgres", "mysql", "sqlite", "duckdb"],
         help="database type",
     )
@@ -55,13 +55,13 @@ def get_args():
         help="names of the 2 tables used in table-differ followed by the name for the diff_table",
     )
     parser.add_argument(
-        "-k", "--key_columns", nargs="+", action="store", help="key columns to track"
+        "-k", "--key-columns", nargs="+", action="store", help="key columns to track"
     )
 
     # OPTIONAL ARGUMENTS
     parser.add_argument(
         "-e",
-        "--except_rows",
+        "--ex-rows",
         nargs="+",
         action="store",
         help="potential rows to be excluded from diff_table. These should be key column values",
@@ -75,13 +75,13 @@ def get_args():
     )
     parser.add_argument(
         "-p",
-        "--print_tables",
+        "--print-tables",
         action="store_true",
         default=None,
         help="prints the tables to the console, use at your own risk",
     )
     parser.add_argument(
-        "--local_db",
+        "--local-db",
         action="store_true",
         default=None,
         help="designates whether or not to use a local sourced database",
@@ -122,6 +122,11 @@ def get_args():
         if args.comparison_columns is None:
             column_type = "ignore"
 
+        if args.local_db is True:
+            db_path = yaml_config["db_path"]
+        else:
+            db_path = None
+
         arg_dict = {
             "database": {
                 "db_host": yaml_config["db_host"],
@@ -129,7 +134,7 @@ def get_args():
                 "db_name": yaml_config["db_name"],
                 "db_user": yaml_config["db_user"],
                 "db_type": db_type,
-                "db_path": yaml_config["db_path"],
+                "db_path": db_path,
             },
             "table_info": {
                 "table_initial": table_initial,
@@ -143,7 +148,7 @@ def get_args():
                 "ignore_columns": args.ignore_columns,
                 "initial_table_name": yaml_config["initial_table_name"],
                 "secondary_table_name": yaml_config["secondary_table_name"],
-                "except_rows": args.except_rows,
+                "except_rows": args.ex_rows,
             },
             "system": {
                 "local_db": args.local_db,
