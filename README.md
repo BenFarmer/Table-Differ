@@ -133,7 +133,8 @@ key_columns               Key columns that Table Differ will query the selected 
                           This can be supplied either here in the config file or as an argument if the --configs argument is set to 'n'.
                           This field accepts n number of fields
 
-personal_schema           Schema of tables being used in Table-Differ.
+schema_name               Name of schema being used.
+                          Default is set to 'public'.
 
 initial_table_name        Placeholder name of the first table being queried in creation of the diff_table.
                           Default is set to 'origin'.
