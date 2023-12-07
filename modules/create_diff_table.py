@@ -135,8 +135,8 @@ class GetSchemas:
 
         """
         db = self.args["database"]["db_type"]
-        if db == "postgess":
-            table_schema = self.conn.execute(
+        if db == "postgres":
+            table_columns = self.conn.execute(
                 text(
                     f"""
                     SELECT *
@@ -148,7 +148,7 @@ class GetSchemas:
                 )
             )
 
-            diff_table_schema = self.conn.execute(
+            diff_table_columns = self.conn.execute(
                 text(
                     f"""
                     SELECT schemaname, tablename,
@@ -161,9 +161,9 @@ class GetSchemas:
 
             table = []
             diff = []
-            for result in table_schema:
+            for result in table_columns:
                 table.append(result)
-            for result in diff_table_schema:
+            for result in diff_table_columns:
                 table.append(result)
 
         elif db == "sqlite":

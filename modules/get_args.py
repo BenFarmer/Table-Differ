@@ -24,6 +24,7 @@ def get_args():
         "--comparison-columns",
         nargs="+",
         action="store",
+        default=[],
         help="columns to be compared, mutually exclusive with ignore_columns",
     )
     group.add_argument(
@@ -31,6 +32,7 @@ def get_args():
         "--ignore-columns",
         nargs="+",
         action="store",
+        default=[],
         help="columns to not track/ignore, mutually exclusive with comparison_columns",
     )
 
@@ -119,7 +121,7 @@ def get_args():
             tables = args.tables
 
         column_type = "comp"
-        if args.comparison_columns is None:
+        if len(args.comparison_columns) == 0:
             column_type = "ignore"
 
         if args.local_db is True:
