@@ -56,6 +56,7 @@ from os.path import expanduser
 # THIRD PARTY
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import create_engine
+import psycopg2
 
 # PERSONAL
 from modules import get_args
@@ -80,50 +81,59 @@ def create_connection(args):
     """
 
     def create_url():
-        db_url = None
+        ########################################################
+        if args["database"]["db_type"] == "postgres":
+            conn = psycopg2.connect(
+                    host = args["database"]["db_host"],
+                    database = args["database"]["db_name"],
+                    user = args["database"]["db_user"]
+                    )
+            return conn
+        ########################################################
+        else:
+            #momentarily placed into an else block to test out postgres connection
+            #using psycopg2 alone instead of sqlalchemy
+            db_url = None
+            try:
+                if args["database"]["db_type"] == "postgres":
+                    with open(expanduser("~/.pgpass"), "r") as f:
+                        host, port, database, user, password = f.read().split(":")
+                    db_url = "postgresql+pyscopg2://{}:{}@{}:{}/{}".format(
+                        user, password, host, port, database
+                    )
+
+                elif args["database"]["db_type"] == "mysql":
+                    with open(expanduser("~/.my.cnf"), "r") as f:
+                        host, port, database, user, password = f.read().split(":")
+                    db_url = "mysql+pymysql://{}:{}@{}:{}/{}".format(
+                        user, password, host, port, database
+                    )
+
+                elif args["database"]["db_type"] == "sqlite":
+                    db_url = f'sqlite+pysqlite:///:{args["db_name"]}:'
+
+                elif args["database"]["db_type"] == "duckdb":
+                    raise NotImplementedError("duckdb not supported yet")
+            except OSError:
+                print("could not open/read file", f)
+                sys.exit()
+            finally:
+                logging.info(f"[bold red] DATABASE URL:[/] {db_url}")
+                return db_url
+
+        if args["system"]["local_db"] is True:
+            db_url = args["database"]["db_path"]
+        else:
+            db_url = create_url()
+
         try:
-            # bug with the postgres connection:
-            #   this automatically pulls the pgpass information
-            #   but still requires the same information from the config file
-            if args["database"]["db_type"] == "postgres":
-                with open(expanduser("~/.pgpass"), "r") as f:
-                    host, port, database, user, password = f.read().split(":")
-                db_url = "postgresql+pyscopg2://{}:{}@{}:{}/{}".format(
-                    user, password, host, port, database
-                )
-
-            elif args["database"]["db_type"] == "mysql":
-                with open(expanduser("~/.my.cnf"), "r") as f:
-                    host, port, database, user, password = f.read().split(":")
-                db_url = "mysql+pymysql://{}:{}@{}:{}/{}".format(
-                    user, password, host, port, database
-                )
-
-            elif args["database"]["db_type"] == "sqlite":
-                db_url = f'sqlite+pysqlite:///:{args["db_name"]}:'
-
-            elif args["database"]["db_type"] == "duckdb":
-                raise NotImplementedError("duckdb not supported yet")
-        except OSError:
-            print("could not open/read file", f)
-            sys.exit()
+            engine = create_engine(db_url, echo=False, future=True)
+            conn = engine.connect()
+            logging.info(f"[bold red]CURRENT CONNECTION:[/]  {conn}")
+        except SQLAlchemyError as e:
+            print(f"ERROR: {str(e)}")
         finally:
-            logging.info(f"[bold red] DATABASE URL:[/] {db_url}")
-            return db_url
-
-    if args["system"]["local_db"] is True:
-        db_url = args["database"]["db_path"]
-    else:
-        db_url = create_url()
-
-    try:
-        engine = create_engine(db_url, echo=False, future=True)
-        conn = engine.connect()
-    except SQLAlchemyError as e:
-        print(f"ERROR: {str(e)}")
-    finally:
-        logging.info(f"[bold red]CURRENT CONNECTION:[/]  {conn}")
-        return conn
+            return conn
 
 
 if __name__ == "__main__":

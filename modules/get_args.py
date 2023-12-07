@@ -140,7 +140,7 @@ def get_args():
                 "table_initial": table_initial,
                 "table_secondary": table_secondary,
                 "tables": tables,
-                "personal_schema": yaml_config["personal_schema"],
+                "schema_name": yaml_config["schema_name"],
                 "table_schema": "null",
                 "diff_table_schema": "null",
                 "key_columns": key_columns,
