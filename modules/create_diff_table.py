@@ -141,7 +141,7 @@ class GetSchemas:
                     f"""
                     SELECT *
                     FROM information_schema.columns
-                    WHERE table_schema = {self.args["personal_schema"]}
+                    WHERE table_schema = {self.args["schema_name"]}
                     AND
                     table_name = {self.args["table_initial"]}
                 """

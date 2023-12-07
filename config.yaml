@@ -12,7 +12,7 @@ table_initial: 'testing_0'
 table_secondary: 'testing_1'
 diff_table: '__d__' # default to __diff_table))
 key_columns: ['id']
-personal_schema: ['id', 'code_1', 'code_2', 'name_1', 'name_2', 'description']
+schema: 'public'
 
 initial_table_name: 'origin'
 secondary_table_name: 'comparison'
