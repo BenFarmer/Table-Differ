@@ -10,7 +10,7 @@ db_path: 'sqlite:///databases/table_diff_test.db'
   # used for machine 0
 table_initial: 'testing_0'
 table_secondary: 'testing_1'
-diff_table: '__d__' # default to __diff_table))
+diff_table: '__diff-table__' # default to __diff_table))
 key_columns: ['id']
 schema_name: 'public'
 

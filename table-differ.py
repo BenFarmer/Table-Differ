@@ -72,8 +72,9 @@ def main():
 
     tables = Tables(args, conn)
     tables.create_diff_table()  # generates initial diff_table
-    Reports(conn, args)  # generates simple reporting
-
+#    Reports(conn, args)  # generates simple reporting
+# reporting is turned off for the time being until it is upgraded to handle the differences
+# between databases in queries. (psql needing schema prefix)
 
 def create_connection(args):
     """Attempts to connect to database using SQLAlchemy and a URL that is pieced together from
