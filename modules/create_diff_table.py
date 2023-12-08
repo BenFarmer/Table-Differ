@@ -214,20 +214,20 @@ class Tables:
         key_join = self.pieces._key_join_universal()
         except_rows = self.pieces._except_rows_universal()
 
-        drop_diff_table = (
-            f"""DROP TABLE IF EXISTS {self.args["table_info"]["diff_table"]}"""
-        )
-
         if self.args["database"]["db_type"] == "postgres":
             query = f"""
-                CREATE TABLE {self.args["table_info"]["diff_table"]} AS
+                CREATE TABLE {self.args["table_info"]["schema_name"]}.{self.args["table_info"]["diff_table"]} AS
                 SELECT
                 {select_args}
-                FROM {self.args['table_initial']} A
-                    FULL OUTER JOIN {self.args['table_secondary']} B
+                FROM {self.args['table_info']['schema_name']}.{self.args['table_initial']} A
+                    FULL OUTER JOIN {self.args['table_info']['schema_name']}.{self.args['table_secondary']} B
                         ON {key_join}
                     {except_rows}
                 """
+
+            drop_diff_table = (
+                f"""DROP TABLE IF EXISTS {self.args["table_info"]["schema_name"]}.{self.args["table_info"]["diff_table"]}"""
+            )
 
         elif self.args["database"]["db_type"] == "sqlite":
             query = f"""
@@ -255,6 +255,10 @@ class Tables:
                             ON {key_join}
                         WHERE A.{self.args['table_info']['key_columns'][0]} IS NULL
                     """
+
+            drop_diff_table = (
+                f"""DROP TABLE IF EXISTS {self.args["table_info"]["diff_table"]}"""
+            )
 
         elif self.args["database"]["db_type"] == "duckdb":
             raise NotImplementedError("duckdb not supported yet")
