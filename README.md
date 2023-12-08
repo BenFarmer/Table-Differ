@@ -136,10 +136,10 @@ key_columns               Key columns that Table Differ will query the selected 
 schema_name               Name of schema being used.
                           Default is set to 'public'.
 
-initial_table_name        Placeholder name of the first table being queried in creation of the diff_table.
+initial_table_alias        Placeholder name of the first table being queried in creation of the diff_table.
                           Default is set to 'origin'.
 
-secondary_table_name      Placeholder name of the second table being queried in creation of the diff_table.
+secondary_table_alias      Placeholder name of the second table being queried in creation of the diff_table.
                           Default is set to 'comparison'.
 ```
 
