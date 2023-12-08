@@ -84,9 +84,9 @@ def create_connection(args):
         db_url = None
         try:
             if args["database"]["db_type"] == "postgres":
-            ################### return built in for testing the psycopg2 connection
+                ################### return built in for testing the psycopg2 connection
                 return
-            ###################
+                ###################
                 with open(expanduser("~/.pgpass"), "r") as f:
                     host, port, database, user, password = f.read().split(":")
                 db_url = "postgresql+pyscopg2://{}:{}@{}:{}/{}".format(
@@ -117,18 +117,20 @@ def create_connection(args):
         else:
             db_url = create_url()
 
+        ########### temp psycopg2 connection ########################
         if args["database"]["db_type"] == "postgres":
             conn = psycopg2.connect(
-                    host = args["database"]["db_host"],
-                    database = args["database"]["db_name"],
-                    user = args["database"]["db_user"],
-                    port = args["database"]["db_port"],
-                    )
+                host=args["database"]["db_host"],
+                database=args["database"]["db_name"],
+                user=args["database"]["db_user"],
+                port=args["database"]["db_port"],
+            )
+        #############################################################
 
         try:
             # commented out for psycopg2 testing
-#            engine = create_engine(db_url, echo=False, future=True)
-#            conn = engine.connect()
+            #            engine = create_engine(db_url, echo=False, future=True)
+            #            conn = engine.connect()
             logging.info(f"[bold red]CURRENT CONNECTION:[/]  {conn}")
         except SQLAlchemyError as e:
             print(f"ERROR: {str(e)}")

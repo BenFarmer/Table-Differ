@@ -53,32 +53,32 @@ class QueryPieces:
                         table == "B"
                         and col == self.args["table_info"]["comp_columns"][-1]
                     ):
-                        string += f'{table}.{col} {self.args["table_info"]["secondary_table_name"]}_{col}'
+                        string += f'{table}.{col} {self.args["table_info"]["secondary_table_alias"]}_{col}'
                     else:
                         if table == "A":
-                            string += f'{table}.{col} {self.args["table_info"]["initial_table_name"]}_{col}, '
+                            string += f'{table}.{col} {self.args["table_info"]["initial_table_alias"]}_{col}, '
                         else:
-                            string += f'{table}.{col} {self.args["table_info"]["secondary_table_name"]}_{col}, '
+                            string += f'{table}.{col} {self.args["table_info"]["secondary_table_alias"]}_{col}, '
             return string
         else:
             # this is the section that covers the ignored cols
             for table in self.tables:
-                for col in self.args["table_info"]["table_schema"]:
+                for col in self.args["table_info"]["table_cols"]:
                     if col not in self.args["table_info"]["ignore_columns"]:
                         print(
-                            self.args["table_info"]["table_schema"][-1],
+                            self.args["table_info"]["table_cols"][-1],
                             "ignore cols clause",
                         )
                         if (
                             table == "B"
-                            and col == self.args["table_info"]["table_schema"][-1]
+                            and col == self.args["table_info"]["table_cols"][-1]
                         ):
-                            string += f'{table}.{col} {self.args["table_info"]["secondary_table_name"]}_{col}'
+                            string += f'{table}.{col} {self.args["table_info"]["secondary_table_alias"]}_{col}'
                         else:
                             if table == "A":
-                                string += f'{table}.{col} {self.args["table_info"]["initial_table_name"]}_{col}, '
+                                string += f'{table}.{col} {self.args["table_info"]["initial_table_alias"]}_{col}, '
                             else:
-                                string += f'{table}.{col} {self.args["table_info"]["secondary_table_name"]}_{col}, '
+                                string += f'{table}.{col} {self.args["table_info"]["secondary_table_alias"]}_{col}, '
             return string
 
     def _key_join_universal(self):
@@ -122,6 +122,10 @@ class GetSchemas:
         self.args = args
         self.conn = conn
         self._get_schema()
+        self.tab_list = [
+            self.args["table_info"]["table_initial"],
+            self.args["table_info"]["diff_table"],
+        ]
 
     def _get_schema(self):
         """This returns the column names within the two tables to be used in several parts of
@@ -136,35 +140,25 @@ class GetSchemas:
         """
         db = self.args["database"]["db_type"]
         if db == "postgres":
-            table_columns = self.conn.execute(
-                text(
-                    f"""
-                    SELECT *
-                    FROM information_schema.columns
-                    WHERE table_schema = {self.args["schema_name"]}
-                    AND
-                    table_name = {self.args["table_initial"]}
-                """
-                )
-            )
-
-            diff_table_columns = self.conn.execute(
-                text(
-                    f"""
-                    SELECT schemaname, tablename,
-                            quote_ident(schemaname) || '.' || quote_ident(tablename)
-                    FROM pg_tables
-                    WHERE tablename = {self.args["table_info"]["tables"][-1]}
-                """
-                )
-            )
-
+            cur = self.conn.cursor()
             table = []
             diff = []
-            for result in table_columns:
-                table.append(result)
-            for result in diff_table_columns:
-                table.append(result)
+
+            for tab in self.tab_list:
+                col_names = f"""
+                        SELECT *
+                        FROM information_schema.columns
+                        WHERE table_schema = {self.args["table_info"]["schema_name"]}
+                        AND
+                        table_name = {tab}
+                    """
+                cur.execute(col_names)
+                columns = cur.fetchall()
+                for result in columns:
+                    if tab == tab[0]:
+                        table.append(result)
+                    else:
+                        diff.append(result)
 
         elif db == "sqlite":
             table_schema = self.conn.execute(
@@ -196,8 +190,8 @@ class GetSchemas:
                 if col not in self.args["table_info"]["comp_columns"]:
                     table.remove(col)
 
-        self.args["table_info"]["table_schema"] = table
-        self.args["table_info"]["diff_table_schema"] = diff
+        self.args["table_info"]["table_cols"] = table
+        self.args["table_info"]["diff_table_cols"] = diff
 
 
 class Tables:
@@ -214,18 +208,23 @@ class Tables:
         GetSchemas(args, conn)
         self.pieces = QueryPieces(args, conn)
 
+        ###########################
+        # cursor object used in temp psycopg2 connection
+        self.cur = conn.cursor()
+        ###########################
+
     def create_diff_table(self):
         select_args = self.pieces._select_args_universal()
         key_join = self.pieces._key_join_universal()
         except_rows = self.pieces._except_rows_universal()
 
         drop_diff_table = (
-            f"""DROP TABLE IF EXISTS {self.args["table_info"]["tables"][2]}"""
+            f"""DROP TABLE IF EXISTS {self.args["table_info"]["diff_table"]}"""
         )
 
         if self.args["database"]["db_type"] == "postgres":
             query = f"""
-                CREATE TABLE {self.args["table_info"]["tables"][2]} AS
+                CREATE TABLE {self.args["table_info"]["diff_table"]} AS
                 SELECT
                 {select_args}
                 FROM {self.args['table_initial']} A
@@ -236,7 +235,7 @@ class Tables:
 
         elif self.args["database"]["db_type"] == "sqlite":
             query = f"""
-                CREATE TABLE IF NOT EXISTS {self.args["table_info"]["tables"][2]} AS
+                CREATE TABLE IF NOT EXISTS {self.args["table_info"]["diff_table"]} AS
                     SELECT
                     {select_args}
                     FROM {self.args["table_info"]['table_initial']} A
@@ -272,8 +271,15 @@ class Tables:
             logging.debug(f"[bold red]Key Join[/]: {key_join}")
             logging.debug(f"[bold red]Except Rows[/]: {except_rows}")
 
-            self.conn.execute(text(drop_diff_table))
-            self.conn.execute(text(query))
+            ####################################
+            # additional if else block added for psycopg2 cursor object
+            if self.args["database"]["db_type"] == "postgres":
+                self.cur.execute(drop_diff_table)
+                self.cur.execute(query)
+            else:
+                self.conn.execute(text(drop_diff_table))
+                self.conn.execute(text(query))
+            ####################################
 
             GetSchemas(self.args, self.conn)
         except OperationalError as e:
