@@ -14,5 +14,5 @@ diff_table: '__d__' # default to __diff_table))
 key_columns: ['id']
 schema_name: 'public'
 
-initial_table_name: 'origin'
-secondary_table_name: 'comparison'
+initial_table_alias: 'origin'
+secondary_table_alias: 'comparison'

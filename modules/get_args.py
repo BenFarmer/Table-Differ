@@ -139,17 +139,23 @@ def get_args():
                 "db_path": db_path,
             },
             "table_info": {
-                "table_initial": table_initial,
-                "table_secondary": table_secondary,
-                "tables": tables,
+                "table_initial": table_initial,  # name of 1st table being queried
+                "table_secondary": table_secondary,  # name of 2nd table being queried
+                "diff_table": tables[-1],
+                "tables": tables,  # contains name of 1st, 2nd, and diff table
+                # these 4 rows in the dict contain the same info
                 "schema_name": yaml_config["schema_name"],
-                "table_schema": "null",
-                "diff_table_schema": "null",
+                "table_cols": "null",  # name of the columns in the 2 tables queried
+                "diff_table_cols": "null",  # name of the columns in the diff table
                 "key_columns": key_columns,
                 "comp_columns": args.comparison_columns,
                 "ignore_columns": args.ignore_columns,
-                "initial_table_name": yaml_config["initial_table_name"],
-                "secondary_table_name": yaml_config["secondary_table_name"],
+                "initial_table_alias": yaml_config[
+                    "initial_table_alias"
+                ],  # alias for 1st table
+                "secondary_table_alias": yaml_config[
+                    "secondary_table_alias"
+                ],  # alias for 2nd table
                 "except_rows": args.ex_rows,
             },
             "system": {
