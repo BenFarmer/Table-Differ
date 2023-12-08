@@ -122,10 +122,6 @@ class GetSchemas:
         self.args = args
         self.conn = conn
         self._get_schema()
-        self.tab_list = [
-            self.args["table_info"]["table_initial"],
-            self.args["table_info"]["diff_table"],
-        ]
 
     def _get_schema(self):
         """This returns the column names within the two tables to be used in several parts of
@@ -144,18 +140,18 @@ class GetSchemas:
             table = []
             diff = []
 
-            for tab in self.tab_list:
+            for table in (self.args["table_info"]["table_initial"], self.args["table_info"]["table_diff"]):
                 col_names = f"""
-                        SELECT *
+                        SELECT column_name
                         FROM information_schema.columns
                         WHERE table_schema = {self.args["table_info"]["schema_name"]}
                         AND
-                        table_name = {tab}
+                        table_name = {table}
                     """
                 cur.execute(col_names)
                 columns = cur.fetchall()
                 for result in columns:
-                    if tab == tab[0]:
+                    if table == table[0]:
                         table.append(result)
                     else:
                         diff.append(result)
@@ -168,7 +164,7 @@ class GetSchemas:
             )
 
             diff_table_schema = self.conn.execute(
-                text(f"""PRAGMA table_info({self.args["table_info"]['tables'][-1]})""")
+                text(f"""PRAGMA table_info({self.args["table_info"]['table_diff']})""")
             )
             table = []
             diff = []
