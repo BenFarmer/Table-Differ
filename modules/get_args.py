@@ -137,7 +137,7 @@ def get_args():
             "table_info": {
                 "table_initial": table_initial,  # name of 1st table being queried
                 "table_secondary": table_secondary,  # name of 2nd table being queried
-                "diff_table": table_diff,
+                "table_diff": table_diff,
 
                 "schema_name": yaml_config["schema_name"],
                 "table_cols": "null",  # name of the columns in the 2 tables queried

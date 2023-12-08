@@ -123,6 +123,11 @@ class GetSchemas:
         self.conn = conn
         self._get_schema()
 
+        table_initial = self.args['table_info']['table_initial']
+        table_secondary = self.args['table_info']['table_secondary']
+        table_diff = self.args['table_info']['table_diff']
+        schema_name = self.args['table_info']['schema_name']
+
     def _get_schema(self):
         """This returns the column names within the two tables to be used in several parts of
         table_differ. The most important usage is within the sql builder functions where the
@@ -140,13 +145,13 @@ class GetSchemas:
             table = []
             diff = []
 
-            for table in (self.args["table_info"]["table_initial"], self.args["table_info"]["table_diff"]):
+            for table in (table_initial, table_diff):
                 col_names = f"""
                         SELECT column_name
                         FROM information_schema.columns
-                        WHERE table_schema = {self.args["table_info"]["schema_name"]}
+                        WHERE table_schema = '{schema_name}'
                         AND
-                        table_name = {table}
+                        table_name = '{table}'
                     """
                 cur.execute(col_names)
                 columns = cur.fetchall()
@@ -159,12 +164,12 @@ class GetSchemas:
         elif db == "sqlite":
             table_schema = self.conn.execute(
                 text(
-                    f"""PRAGMA table_info({self.args["table_info"]['table_initial']})"""
+                    f"""PRAGMA table_info({table_initial})"""
                 )
             )
 
             diff_table_schema = self.conn.execute(
-                text(f"""PRAGMA table_info({self.args["table_info"]['table_diff']})""")
+                text(f"""PRAGMA table_info({table_diff})""")
             )
             table = []
             diff = []
@@ -214,50 +219,55 @@ class Tables:
         key_join = self.pieces._key_join_universal()
         except_rows = self.pieces._except_rows_universal()
 
+        table_initial = self.args['table_info']['table_initial']
+        table_secondary = self.args['table_info']['table_secondary']
+        table_diff = self.args['table_info']['table_diff']
+        schema_name = self.args['table_info']['schema_name']
+
         if self.args["database"]["db_type"] == "postgres":
             query = f"""
-                CREATE TABLE {self.args["table_info"]["schema_name"]}.{self.args["table_info"]["diff_table"]} AS
+                CREATE TABLE {schema_name}.{table_diff} AS
                 SELECT
                 {select_args}
-                FROM {self.args['table_info']['schema_name']}.{self.args['table_initial']} A
-                    FULL OUTER JOIN {self.args['table_info']['schema_name']}.{self.args['table_secondary']} B
+                FROM {schema_name}.{table_initial} A
+                    FULL OUTER JOIN {schema_name}.{table_secondary} B
                         ON {key_join}
                     {except_rows}
                 """
 
             drop_diff_table = (
-                f"""DROP TABLE IF EXISTS {self.args["table_info"]["schema_name"]}.{self.args["table_info"]["diff_table"]}"""
+                f"""DROP TABLE IF EXISTS {schema_name}.{table_diff}"""
             )
 
         elif self.args["database"]["db_type"] == "sqlite":
             query = f"""
-                CREATE TABLE IF NOT EXISTS {self.args["table_info"]["diff_table"]} AS
+                CREATE TABLE IF NOT EXISTS {table_diff} AS
                     SELECT
                     {select_args}
-                    FROM {self.args["table_info"]['table_initial']} A
-                        INNER JOIN {self.args["table_info"]['table_secondary']} B
+                    FROM {table_initial} A
+                        INNER JOIN {table_secondary} B
                             ON {key_join}
                         {except_rows}
 
                     UNION ALL
                     SELECT
                     {select_args}
-                    FROM {self.args['table_info']['table_secondary']} B
-                        LEFT OUTER JOIN {self.args['table_info']['table_initial']} A
+                    FROM {table_secondary} B
+                        LEFT OUTER JOIN {table_initial} A
                             ON {key_join}
                         WHERE A.{self.args['table_info']['key_columns'][0]} IS NULL
 
                     UNION ALL
                     SELECT
                     {select_args}
-                    FROM {self.args['table_info']['table_secondary']} B
-                        INNER JOIN {self.args['table_info']['table_initial']} A
+                    FROM {table_secondary} B
+                        INNER JOIN {table_initial} A
                             ON {key_join}
                         WHERE A.{self.args['table_info']['key_columns'][0]} IS NULL
                     """
 
             drop_diff_table = (
-                f"""DROP TABLE IF EXISTS {self.args["table_info"]["diff_table"]}"""
+                f"""DROP TABLE IF EXISTS {diff_table}"""
             )
 
         elif self.args["database"]["db_type"] == "duckdb":

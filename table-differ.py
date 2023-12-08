@@ -27,7 +27,7 @@
 
         -d --db_type                   specifies what type of database to connect to
 
-        -t --tables                 requires 3 arguments that are the names of the
+        -t --tables                 requires 3 arguments that are the actual names of the
                                     initial and secondary table to be used in table-differ
                                     along with the name that would like to use for the 
                                     diff_table that will be created.
