@@ -106,7 +106,7 @@ class Reports:
             for count in query:
                 self.reports["diff_table"]["modified rows between both tables"] = count[
                     0
-                ]
+                    ]
 
         try:
             count_rows()
@@ -160,7 +160,11 @@ class Reports:
         """
 
         def raw_tables():
-            for table in self.args["table_info"]["tables"]:
+            for table in (
+                    self.args["table_info"]["table_initial"],
+                    self.args["table_info"]["table_secondary"],
+                    self.args["table_info"]["table_diff"],
+                    ):
                 try:
                     query = self.conn.execute(
                         text(
@@ -170,13 +174,13 @@ class Reports:
                         )
                     )
                     raw_table = Table(title=f"{table}")
-                    if table == self.args["table_info"]["tables"][-1]:
+                    if table == self.args["table_info"]["table_diff"]:
                         for col in self.args["table_info"]["diff_table_schema"]:
                             raw_table.add_column(
                                 f"{col}_{table}", style="cyan", no_wrap=True
                             )
                     else:
-                        for col in self.args["table_info"]["table_schema"]:
+                        for col in self.args["table_info"]["table_cols"]:
                             raw_table.add_column(
                                 f"{col}_{table}", style="cyan", no_wrap=True
                             )

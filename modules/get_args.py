@@ -107,18 +107,15 @@ def get_args():
             db_type = yaml_config["db_type"]
             table_initial = yaml_config["table_initial"]
             table_secondary = yaml_config["table_secondary"]
+            table_diff = yaml_config["diff_table"]
             key_columns = yaml_config["key_columns"]
-            tables = [
-                yaml_config["table_initial"],
-                yaml_config["table_secondary"],
-                yaml_config["diff_table"],
             ]
         else:
             db_type = args.db_type
             table_initial = args.tables[0]
             table_secondary = args.tables[1]
+            table_diff = args.tables[2]
             key_columns = args.key_columns
-            tables = args.tables
 
         column_type = "comp"
         if len(args.comparison_columns) == 0:
@@ -141,9 +138,8 @@ def get_args():
             "table_info": {
                 "table_initial": table_initial,  # name of 1st table being queried
                 "table_secondary": table_secondary,  # name of 2nd table being queried
-                "diff_table": tables[-1],
-                "tables": tables,  # contains name of 1st, 2nd, and diff table
-                # these 4 rows in the dict contain the same info
+                "diff_table": table_diff,
+
                 "schema_name": yaml_config["schema_name"],
                 "table_cols": "null",  # name of the columns in the 2 tables queried
                 "diff_table_cols": "null",  # name of the columns in the diff table
