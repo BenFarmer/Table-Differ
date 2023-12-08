@@ -109,7 +109,6 @@ def get_args():
             table_secondary = yaml_config["table_secondary"]
             table_diff = yaml_config["diff_table"]
             key_columns = yaml_config["key_columns"]
-            ]
         else:
             db_type = args.db_type
             table_initial = args.tables[0]

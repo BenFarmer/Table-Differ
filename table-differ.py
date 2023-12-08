@@ -80,7 +80,6 @@ def create_connection(args):
     """Attempts to connect to database using SQLAlchemy and a URL that is pieced together from
     components in config.yaml
     """
-
     def create_url():
         db_url = None
         try:
@@ -113,30 +112,30 @@ def create_connection(args):
             logging.info(f"[bold red] DATABASE URL:[/] {db_url}")
             return db_url
 
-        if args["system"]["local_db"] is True:
-            db_url = args["database"]["db_path"]
-        else:
-            db_url = create_url()
+    if args["system"]["local_db"] is True:
+        db_url = args["database"]["db_path"]
+    else:
+        db_url = create_url()
 
-        ########### temp psycopg2 connection ########################
-        if args["database"]["db_type"] == "postgres":
-            conn = psycopg2.connect(
-                host=args["database"]["db_host"],
-                database=args["database"]["db_name"],
-                user=args["database"]["db_user"],
-                port=args["database"]["db_port"],
-            )
-        #############################################################
+    ########### temp psycopg2 connection ########################
+    if args["database"]["db_type"] == "postgres":
+        conn = psycopg2.connect(
+            host=args["database"]["db_host"],
+            database=args["database"]["db_name"],
+            user=args["database"]["db_user"],
+            port=args["database"]["db_port"],
+        )
+    #############################################################
 
-        try:
-            # commented out for psycopg2 testing
-            #            engine = create_engine(db_url, echo=False, future=True)
-            #            conn = engine.connect()
-            logging.info(f"[bold red]CURRENT CONNECTION:[/]  {conn}")
-        except SQLAlchemyError as e:
-            print(f"ERROR: {str(e)}")
-        finally:
-            return conn
+    try:
+        # commented out for psycopg2 testing
+        #            engine = create_engine(db_url, echo=False, future=True)
+        #            conn = engine.connect()
+        logging.info(f"[bold red]CURRENT CONNECTION:[/]  {conn}")
+    except SQLAlchemyError as e:
+        print(f"ERROR: {str(e)}")
+    finally:
+        return conn
 
 
 if __name__ == "__main__":
