@@ -22,7 +22,7 @@ FIRST_KEY = 0
 SECOND_KEY = 1
 
 
-class QueryPieces:
+class QueryClauses:
     """builds and returns the requested sql code to be inserted into the database dependent 'skeleton'
     code for building the diff table.
     Pieces that are required:
@@ -117,18 +117,27 @@ class QueryPieces:
         return string
 
 
-class GetSchemas:
-    def __init__(self, args, conn):
-        self.args = args
+class GetColumns:
+    # dont run from init, change this to public method
+    # maybe change name from GetSchemas to something more specific about col names
+    # have this called twice and moved into its own module that just pulls cols
+
+    def __init__(
+        self,
+        conn,
+        schema: str,
+        table: str,
+        db_type: str,
+    ):
         self.conn = conn
         self._get_schema()
 
-        table_initial = self.args['table_info']['table_initial']
-        table_secondary = self.args['table_info']['table_secondary']
-        table_diff = self.args['table_info']['table_diff']
-        schema_name = self.args['table_info']['schema_name']
+        self.schema = schema
+        self.table = table
+        self.db_type = db_type
 
-    def _get_schema(self):
+    def _get_cols(self):
+        # each db should have its own private method under the class
         """This returns the column names within the two tables to be used in several parts of
         table_differ. The most important usage is within the sql builder functions where the
         names of columns are integral in order to properly piece together the arguments.
@@ -163,9 +172,7 @@ class GetSchemas:
 
         elif db == "sqlite":
             table_schema = self.conn.execute(
-                text(
-                    f"""PRAGMA table_info({table_initial})"""
-                )
+                text(f"""PRAGMA table_info({table_initial})""")
             )
 
             diff_table_schema = self.conn.execute(
@@ -195,7 +202,7 @@ class GetSchemas:
         self.args["table_info"]["diff_table_cols"] = diff
 
 
-class Tables:
+class DiffTableMaker:
     """Tables controls the actual creation of the __diff_table__ based on
     what type of database the connection is secured with. Unfortunately the
     queries will have to be different depending on each databases unique
@@ -206,8 +213,13 @@ class Tables:
         self.args = args
         self.conn = conn
         self.tables = ["A", "B"]
-        GetSchemas(args, conn)
-        self.pieces = QueryPieces(args, conn)
+        GetColumns(
+            conn,
+            schema=args["table_info"]["schema_name"],
+            table=args["table_info"]["table_initial"],
+            db_type=args["database"]["db_type"],
+        )
+        self.clause = DiffQueryClauses(args, conn)
 
         ###########################
         # cursor object used in temp psycopg2 connection
@@ -215,60 +227,56 @@ class Tables:
         ###########################
 
     def create_diff_table(self):
-        select_args = self.pieces._select_args_universal()
-        key_join = self.pieces._key_join_universal()
-        except_rows = self.pieces._except_rows_universal()
+        select_clause = self.clause.select_clause_universal()
+        join_clause = self.clause.join_clause_universal()
+        except_clause = self.clause._except_clause_universal()
 
-        table_initial = self.args['table_info']['table_initial']
-        table_secondary = self.args['table_info']['table_secondary']
-        table_diff = self.args['table_info']['table_diff']
-        schema_name = self.args['table_info']['schema_name']
+        table_initial = self.args["table_info"]["table_initial"]
+        table_secondary = self.args["table_info"]["table_secondary"]
+        table_diff = self.args["table_info"]["table_diff"]
+        schema_name = self.args["table_info"]["schema_name"]
 
         if self.args["database"]["db_type"] == "postgres":
             query = f"""
                 CREATE TABLE {schema_name}.{table_diff} AS
                 SELECT
-                {select_args}
+                {select_clause}
                 FROM {schema_name}.{table_initial} A
                     FULL OUTER JOIN {schema_name}.{table_secondary} B
-                        ON {key_join}
-                    {except_rows}
+                        ON {join_clause}
+                    {except_clause}
                 """
 
-            drop_diff_table = (
-                f"""DROP TABLE IF EXISTS {schema_name}.{table_diff}"""
-            )
+            drop_diff_table = f"""DROP TABLE IF EXISTS {schema_name}.{table_diff}"""
 
         elif self.args["database"]["db_type"] == "sqlite":
             query = f"""
                 CREATE TABLE IF NOT EXISTS {table_diff} AS
                     SELECT
-                    {select_args}
+                    {select_clause}
                     FROM {table_initial} A
                         INNER JOIN {table_secondary} B
-                            ON {key_join}
-                        {except_rows}
+                            ON {join_clause}
+                        {except_clause}
 
                     UNION ALL
                     SELECT
-                    {select_args}
+                    {select_clause}
                     FROM {table_secondary} B
                         LEFT OUTER JOIN {table_initial} A
-                            ON {key_join}
+                            ON {join_clause}
                         WHERE A.{self.args['table_info']['key_columns'][0]} IS NULL
 
                     UNION ALL
                     SELECT
-                    {select_args}
+                    {select_clause}
                     FROM {table_secondary} B
                         INNER JOIN {table_initial} A
-                            ON {key_join}
+                            ON {join_clause}
                         WHERE A.{self.args['table_info']['key_columns'][0]} IS NULL
                     """
 
-            drop_diff_table = (
-                f"""DROP TABLE IF EXISTS {diff_table}"""
-            )
+            drop_diff_table = f"""DROP TABLE IF EXISTS {diff_table}"""
 
         elif self.args["database"]["db_type"] == "duckdb":
             raise NotImplementedError("duckdb not supported yet")
