@@ -100,93 +100,46 @@ class QueryClauses:
                     string += """) AND """
         return string
 
-
-class GetColumns:
-    # dont run from init, change this to public method
-    # maybe change name from GetSchemas to something more specific about col names
-    # have this called twice and moved into its own module that just pulls cols
-
-    def __init__(
-        self,
-        conn,
-        schema: str,
-        table: str,
-        db_type: str,
-    ):
-        self.conn = conn
-        self._get_schema()
-
-        self.schema = schema
-        self.table = table
-        self.db_type = db_type
-
-    def _get_cols(self):
-        # each db should have its own private method under the class
-        """This returns the column names within the two tables to be used in several parts of
-        table_differ. The most important usage is within the sql builder functions where the
-        names of columns are integral in order to properly piece together the arguments.
-        Active issues:
-            - there is copied code that may be used in every different
-                database version of the queries due to how different dbs
-                handle accessing a schema (specifically a schema that is not known)
-
-
+# to be moved into separate module
+def get_cols(conn,
+             db_type: str,
+             schema_name: str,
+             table_name: str) -> list[str]:
+    """This returns the column names within the two tables to be used in several parts of
+    table_differ. The most important usage is within the sql builder functions where the
+    names of columns are integral in order to properly piece together the arguments.
+    """
+    db = self.args["database"]["db_type"]
+    if db == "postgres":
+        cur = conn.cursor()
+        col_names = f"""
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = '{schema_name}]
+                AND table_name = '{table_name}'
         """
-        db = self.args["database"]["db_type"]
-        if db == "postgres":
-            cur = self.conn.cursor()
-            table = []
-            diff = []
+        cur.execute(col_names)
+        columns = cur.fetchall()
 
-            for table in (table_initial, table_diff):
-                col_names = f"""
-                        SELECT column_name
-                        FROM information_schema.columns
-                        WHERE table_schema = '{schema_name}'
-                        AND
-                        table_name = '{table}'
-                    """
-                cur.execute(col_names)
-                columns = cur.fetchall()
-                for result in columns:
-                    if table == table[0]:
-                        table.append(result)
-                    else:
-                        diff.append(result)
+    elif db == "sqlite":
+        table_schema = self.conn.execute(
+            text(f"""PRAGMA table_info({table_name})""")
+        )
+        columns = []
+        for result in table_schema:
+            columns.append(result[1])
 
-        elif db == "sqlite":
-            table_schema = self.conn.execute(
-                text(f"""PRAGMA table_info({table_initial})""")
-            )
+    elif db == "duckdb":
+        raise NotImplementedError("duckdb not supported yet")
+    elif db == "mysql":
+        raise NotImplementedError("mysql not supported yet")
+    return columns
 
-            diff_table_schema = self.conn.execute(
-                text(f"""PRAGMA table_info({table_diff})""")
-            )
-            table = []
-            diff = []
-            for result in table_schema:
-                table.append(result[1])
-            for result in diff_table_schema:
-                diff.append(result[1])
+def get_common_cols(table_a_cols: list[str],
+                    table_b_cols: list[str]) -> list[str]:
+    return list(set(table_a_cols).intersection(set(table_b_cols)))
 
-        elif db == "duckdb":
-            raise NotImplementedError("duckdb not supported yet")
-        elif db == "mysql":
-            raise NotImplementedError("mysql not supported yet")
-
-        try:
-            for col in self.args["table_info"]["ignore_columns"]:
-                table.remove(col)
-        except TypeError:
-            for col in table:
-                if col not in self.args["table_info"]["comp_columns"]:
-                    table.remove(col)
-
-        self.args["table_info"]["table_cols"] = table
-        self.args["table_info"]["diff_table_cols"] = diff
-
-
-class DiffTableMaker:
+class DiffWriter:
     """Tables controls the actual creation of the __diff_table__ based on
     what type of database the connection is secured with. Unfortunately the
     queries will have to be different depending on each databases unique

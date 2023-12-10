@@ -68,3 +68,8 @@ class TestQueryClauses:
                     ' AND a.col_2 = b.col_2 ')
         assert actual == expected
 
+def test_get_common_cols():
+    tab_a_cols = ['col_1', 'col_2', 'col_3']
+    tab_b_cols = ['col_3', 'col_4', 'col_5']
+    actual = mod.get_common_cols(tab_a_cols, tab_b_cols)
+    assert actual == ['col_3']
