@@ -13,6 +13,7 @@
 
 # BUILT-INS
 import logging
+from pprint import pprint as pp
 
 # THIRD PARTY
 from sqlalchemy.exc import NoSuchTableError, OperationalError
@@ -33,68 +34,51 @@ class QueryClauses:
     QueryPieces also gathers the names of each column within the table with self._get_schema()
     """
 
-    def __init__(self, args, conn):
-        self.args = args
-        self.conn = conn
-        self.tables = ["A", "B"]
+    def __init__(self, 
+                 table_cols: list[str],
+                 key_cols: list[str],
+                 compare_cols: list[str],
+                 ignore_cols: list[str],
+                 initial_table_alias: str,
+                 secondary_table_alias: str):
 
-    def _select_args_universal(self):
+        self.table_cols = table_cols
+        self.key_cols = key_cols
+        self.compare_cols = compare_cols
+        self.ignore_cols = ignore_cols
+        self.initial_table_alias = initial_table_alias
+        self.secondary_table_alias = secondary_table_alias
+
+        if not compare_cols and not ignore_cols:
+            raise ValueError('Must have either compare_cols or ignore_cols')
+
+    def get_select(self) -> str:
         """This pieces together the initial SELECT arguments for the __diff_table__ creation
         using the comparison or ignore columns given.
         """
         string = ""
-        for key in self.args["table_info"]["key_columns"]:
-            string += f"A.{key} {key}, "
+        for key in self.key_cols:
+            string += f"    a.{key} {self.initial_table_alias}_{key}, \n"
+            string += f"    a.{key} {self.secondary_table_alias}_{key}, \n"
 
-        if self.args["system"]["column_type"] == "comp":
-            for table in self.tables:
-                for col in self.args["table_info"]["comp_columns"]:
-                    if (
-                        table == "B"
-                        and col == self.args["table_info"]["comp_columns"][-1]
-                    ):
-                        string += f'{table}.{col} {self.args["table_info"]["secondary_table_alias"]}_{col}'
-                    else:
-                        if table == "A":
-                            string += f'{table}.{col} {self.args["table_info"]["initial_table_alias"]}_{col}, '
-                        else:
-                            string += f'{table}.{col} {self.args["table_info"]["secondary_table_alias"]}_{col}, '
-            return string
+        if self.compare_cols:
+            usable_cols = sorted(list(set(self.compare_cols) - set(self.key_cols)))
         else:
-            # this is the section that covers the ignored cols
-            for table in self.tables:
-                for col in self.args["table_info"]["table_cols"]:
-                    if col not in self.args["table_info"]["ignore_columns"]:
-                        print(
-                            self.args["table_info"]["table_cols"][-1],
-                            "ignore cols clause",
-                        )
-                        if (
-                            table == "B"
-                            and col == self.args["table_info"]["table_cols"][-1]
-                        ):
-                            string += f'{table}.{col} {self.args["table_info"]["secondary_table_alias"]}_{col}'
-                        else:
-                            if table == "A":
-                                string += f'{table}.{col} {self.args["table_info"]["initial_table_alias"]}_{col}, '
-                            else:
-                                string += f'{table}.{col} {self.args["table_info"]["secondary_table_alias"]}_{col}, '
-            return string
+            usable_cols = list(set(self.table_cols) - set(self.ignore_cols))
+            usable_cols = sorted(list(set(usable_cols) - set(self.key_cols)))
 
-    def _key_join_universal(self):
-        key_string = ""
+        for col in usable_cols:
+            string += f"    a.{col} {self.initial_table_alias}_{col}, \n"
+            string += f"    a.{col} {self.secondary_table_alias}_{col}, \n"
+        string = string.rstrip().rstrip(',')
+        return string
 
-        for key in self.args["table_info"]["key_columns"]:  # id, name
-            if len(self.args["table_info"]["key_columns"]) == 0:
-                key_string += f"A.{key} = B.{key}"
-            else:
-                if key == self.args["table_info"]["key_columns"][-1]:
-                    key_string += f"A.{key} = B.{key}"
-                else:
-                    key_string += f"A.{key} = B.{key} AND "
-        return key_string
+    def get_join(self) -> str:
+        string = ""
+        return ' AND '.join([f' a.{x} = b.{x} ' for x in self.key_cols])
 
     def _except_rows_universal(self):
+        # this needs to be reformatted next
         if self.args["table_info"]["except_rows"] is None:
             return ""
         string = """WHERE """
@@ -116,93 +100,48 @@ class QueryClauses:
                     string += """) AND """
         return string
 
-
-class GetColumns:
-    # dont run from init, change this to public method
-    # maybe change name from GetSchemas to something more specific about col names
-    # have this called twice and moved into its own module that just pulls cols
-
-    def __init__(
-        self,
-        conn,
-        schema: str,
-        table: str,
-        db_type: str,
-    ):
-        self.conn = conn
-        self._get_schema()
-
-        self.schema = schema
-        self.table = table
-        self.db_type = db_type
-
-    def _get_cols(self):
-        # each db should have its own private method under the class
-        """This returns the column names within the two tables to be used in several parts of
-        table_differ. The most important usage is within the sql builder functions where the
-        names of columns are integral in order to properly piece together the arguments.
-        Active issues:
-            - there is copied code that may be used in every different
-                database version of the queries due to how different dbs
-                handle accessing a schema (specifically a schema that is not known)
-
-
+# to be moved into separate module
+######################################################################
+def get_cols(conn,
+             db_type: str,
+             schema_name: str,
+             table_name: str) -> list[str]:
+    """This returns the column names within the two tables to be used in several parts of
+    table_differ. The most important usage is within the sql builder functions where the
+    names of columns are integral in order to properly piece together the arguments.
+    """
+    db = self.args["database"]["db_type"]
+    if db == "postgres":
+        cur = conn.cursor()
+        col_names = f"""
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = '{schema_name}]
+                AND table_name = '{table_name}'
         """
-        db = self.args["database"]["db_type"]
-        if db == "postgres":
-            cur = self.conn.cursor()
-            table = []
-            diff = []
+        cur.execute(col_names)
+        columns = cur.fetchall()
 
-            for table in (table_initial, table_diff):
-                col_names = f"""
-                        SELECT column_name
-                        FROM information_schema.columns
-                        WHERE table_schema = '{schema_name}'
-                        AND
-                        table_name = '{table}'
-                    """
-                cur.execute(col_names)
-                columns = cur.fetchall()
-                for result in columns:
-                    if table == table[0]:
-                        table.append(result)
-                    else:
-                        diff.append(result)
+    elif db == "sqlite":
+        table_schema = self.conn.execute(
+            text(f"""PRAGMA table_info({table_name})""")
+        )
+        columns = []
+        for result in table_schema:
+            columns.append(result[1])
 
-        elif db == "sqlite":
-            table_schema = self.conn.execute(
-                text(f"""PRAGMA table_info({table_initial})""")
-            )
+    elif db == "duckdb":
+        raise NotImplementedError("duckdb not supported yet")
+    elif db == "mysql":
+        raise NotImplementedError("mysql not supported yet")
+    return columns
 
-            diff_table_schema = self.conn.execute(
-                text(f"""PRAGMA table_info({table_diff})""")
-            )
-            table = []
-            diff = []
-            for result in table_schema:
-                table.append(result[1])
-            for result in diff_table_schema:
-                diff.append(result[1])
+def get_common_cols(table_a_cols: list[str],
+                    table_b_cols: list[str]) -> list[str]:
+    return list(set(table_a_cols).intersection(set(table_b_cols)))
+######################################################################
 
-        elif db == "duckdb":
-            raise NotImplementedError("duckdb not supported yet")
-        elif db == "mysql":
-            raise NotImplementedError("mysql not supported yet")
-
-        try:
-            for col in self.args["table_info"]["ignore_columns"]:
-                table.remove(col)
-        except TypeError:
-            for col in table:
-                if col not in self.args["table_info"]["comp_columns"]:
-                    table.remove(col)
-
-        self.args["table_info"]["table_cols"] = table
-        self.args["table_info"]["diff_table_cols"] = diff
-
-
-class DiffTableMaker:
+class DiffWriter:
     """Tables controls the actual creation of the __diff_table__ based on
     what type of database the connection is secured with. Unfortunately the
     queries will have to be different depending on each databases unique
@@ -213,42 +152,63 @@ class DiffTableMaker:
         self.args = args
         self.conn = conn
         self.tables = ["A", "B"]
-        GetColumns(
-            conn,
-            schema=args["table_info"]["schema_name"],
-            table=args["table_info"]["table_initial"],
-            db_type=args["database"]["db_type"],
-        )
-        self.clause = DiffQueryClauses(args, conn)
-
+        self.db_type = self.args["database"]["db_type"]
+        self.table_initial = self.args["table_info"]["table_initial"]
+        self.table_secondary = self.args["table_info"]["table_secondary"]
+        self.table_diff = self.args["table_info"]["table_diff"]
+        self.schema_name = self.args["table_info"]["schema_name"]
+        self.key_cols = self.args["table_info"]["key_columns"]
+        self.compare_cols = self.args["table_info"]["comp_columns"]
+        self.ignore_cols = self.args["table_info"]["ignore_columns"]
+        self.initial_table_alias = self.args["table_info"]["initial_table_alias"]
+        self.secondary_table_alias = self.args["table_info"]["secondary_table_alias"]
         ###########################
         # cursor object used in temp psycopg2 connection
         self.cur = conn.cursor()
         ###########################
 
-    def create_diff_table(self):
-        select_clause = self.clause.select_clause_universal()
-        join_clause = self.clause.join_clause_universal()
-        except_clause = self.clause._except_clause_universal()
+    def _get_clauses(self):
+        initial_table_cols = get_columns(self.conn,
+                                         self.db_type,
+                                         self.schema_name,
+                                         self.table_initial)
+        secondary_table_cols = get_columns(self.conn,
+                                         self.db_type,
+                                         self.schema_name,
+                                         self.table_secondary)
+        common_table_cols = get_columns(initial_table_cols, secondary_table_cols)
+        clauses = QueryClauses(
+                table_cols = common_table_cols,
+                key_cols = self.key_cols,
+                compare_cols = self.compare_cols,
+                ignore_cols = self.ignore_cols,
+                initial_table_alias = self.initial_table_alias,
+                secondary_table_alias = self.secondary_table_alias)
+        return clauses
 
-        table_initial = self.args["table_info"]["table_initial"]
-        table_secondary = self.args["table_info"]["table_secondary"]
-        table_diff = self.args["table_info"]["table_diff"]
-        schema_name = self.args["table_info"]["schema_name"]
-
-        if self.args["database"]["db_type"] == "postgres":
-            query = f"""
-                CREATE TABLE {schema_name}.{table_diff} AS
-                SELECT
-                {select_clause}
-                FROM {schema_name}.{table_initial} A
-                    FULL OUTER JOIN {schema_name}.{table_secondary} B
-                        ON {join_clause}
-                    {except_clause}
+    def _assemble_create_query_psql(self):
+        select_clause = clauses.get_select()
+        join_clause = clauses.get_join()
+        create_query = f"""
+                CREATE TABLE {self.schema_name}.{self.table_diff} AS
+                SELECT {select_clauses}
+                FROM {self.schema_name}.{self.table_initial} A
+                    FULL OUTER JOIN {self.schema_name}.{self.table_secondary} B
+                    ON {join_clause}
                 """
+        return create_query
 
-            drop_diff_table = f"""DROP TABLE IF EXISTS {schema_name}.{table_diff}"""
+    def _assemble_drop_query(self):
+        if self.db_type == 'postgres' or 'mysql':
+            table_reference = f"{self.schema_name}.{self.table_diff}"
+        else:
+            table_reference = f"{self.table_diff}"
+        drop_query = (
+            f"""DROP TABLE IF EXISTS {table_reference}""")
+        return drop_query
 
+# this needs reformatting next, placing query frame here temporarily
+    def _assemble_create_query_sqlite(self, clauses):
         elif self.args["database"]["db_type"] == "sqlite":
             query = f"""
                 CREATE TABLE IF NOT EXISTS {table_diff} AS
@@ -276,35 +236,32 @@ class DiffTableMaker:
                         WHERE A.{self.args['table_info']['key_columns'][0]} IS NULL
                     """
 
-            drop_diff_table = f"""DROP TABLE IF EXISTS {diff_table}"""
+    def create_diff_table(self):
+        clauses = self._get_clauses()
 
-        elif self.args["database"]["db_type"] == "duckdb":
-            raise NotImplementedError("duckdb not supported yet")
-        elif self.args["database"]["db_type"] == "mysql":
-            raise NotImplementedError("mysql not supported yet")
+        if self.db_type == 'sqlite':
+            create_query = self._assemble_create_query_sqlite(clauses)
+            drop_query = self._assemble_drop_query()
+        elif self.db_type == 'postgres':
+            create_query = self._assemble_create_query_psql(clauses)
+            drop_query = self._assemble_drop_query()
+        else:
+            raise NotImplementedError('sorry this db isnt implemented')
+
+        logging.debug(f"[bold red] Diff Query[/]: {create_query}")
 
         try:
-            logging.debug(f"[bold red]Diff Query[/]: {query}")
-            logging.debug(f"[bold red]Select Arg[/]: {select_args}")
-            logging.debug(f"[bold red]Key Join[/]: {key_join}")
-            logging.debug(f"[bold red]Except Rows[/]: {except_rows}")
-
-            ####################################
-            # additional if else block added for psycopg2 cursor object
-            if self.args["database"]["db_type"] == "postgres":
-                self.cur.execute(drop_diff_table)
-                self.cur.execute(query)
-            else:
-                self.conn.execute(text(drop_diff_table))
-                self.conn.execute(text(query))
-            ####################################
-
-            GetSchemas(self.args, self.conn)
+            if self.db_type == 'sqlite' or 'duckdb' or 'mysql':
+                self.conn.execute(text(drop_query))
+                self.conn.execute(text(create_query))
+            elif self.db_type == 'postgres':
+                self.cur.execute(drop_query)
+                self.cur.execute(create_query)
         except OperationalError as e:
             logging.critical(f"[bold red blink]OPERATIONAL ERROR:[/] {e}")
-
         except NoSuchTableError as e:
             logging.critical(f"[bold red blink] NO TABLE ERROR:[/] {e}")
 
         finally:
             self.conn.commit()
+            print('Diff Table Created')
