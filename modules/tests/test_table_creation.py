@@ -41,7 +41,6 @@ class TestQueryClauses:
                               compare_cols=[],
                               ignore_cols = ['col_5', 'col_6'],
                               initial_table_alias='TABA',
-                              secondary_table_alias='TABB')
         actual = qc.get_select()
         pp('---------- actual ----------')
         pp(actual)
@@ -56,3 +55,16 @@ class TestQueryClauses:
                     '   b.col_4 TABB_col_4'
         assert actual == expected
                               
+    def test_join(self):
+        qc = mod.QueryClauses(table_cols=['col_1', 'col_2', 'col_3', 'col_4', 'col_5', 'col_6'],
+                              key_cols=['col_1', 'col_2'],
+                              compare_cols=[],
+                              ignore_cols = ['col_5', 'col_6'],
+                              initial_table_alias='TABA',
+                              secondary_table_alias='TABB')
+        actual = qc.get_join()
+        pp(actual)
+        expected = (' a.col_1 = b.col_1 '
+                    ' AND a.col_2 = b.col_2 ')
+        assert actual == expected
+

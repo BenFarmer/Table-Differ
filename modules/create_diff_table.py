@@ -74,18 +74,9 @@ class QueryClauses:
         string = string.rstrip().rstrip(',')
         return string
 
-    def _key_join_universal(self):
-        key_string = ""
-
-        for key in self.args["table_info"]["key_columns"]:  # id, name
-            if len(self.args["table_info"]["key_columns"]) == 0:
-                key_string += f"A.{key} = B.{key}"
-            else:
-                if key == self.args["table_info"]["key_columns"][-1]:
-                    key_string += f"A.{key} = B.{key}"
-                else:
-                    key_string += f"A.{key} = B.{key} AND "
-        return key_string
+    def get_join(self) -> str:
+        string = ""
+        return ' AND '.join([f' a.{x} = b.{x} ' for x in self.key_cols])
 
     def _except_rows_universal(self):
         if self.args["table_info"]["except_rows"] is None:
