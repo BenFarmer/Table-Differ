@@ -48,7 +48,6 @@ class QueryClauses:
         self.ignore_cols = ignore_cols
         self.initial_table_alias = initial_table_alias
         self.secondary_table_alias = secondary_table_alias
-        self.tables = ["A", "B"]
 
         if not compare_cols and not ignore_cols:
             raise ValueError('Must have either compare_cols or ignore_cols')
@@ -79,6 +78,7 @@ class QueryClauses:
         return ' AND '.join([f' a.{x} = b.{x} ' for x in self.key_cols])
 
     def _except_rows_universal(self):
+        # this needs to be reformatted next
         if self.args["table_info"]["except_rows"] is None:
             return ""
         string = """WHERE """
@@ -101,6 +101,7 @@ class QueryClauses:
         return string
 
 # to be moved into separate module
+######################################################################
 def get_cols(conn,
              db_type: str,
              schema_name: str,
@@ -138,6 +139,7 @@ def get_cols(conn,
 def get_common_cols(table_a_cols: list[str],
                     table_b_cols: list[str]) -> list[str]:
     return list(set(table_a_cols).intersection(set(table_b_cols)))
+######################################################################
 
 class DiffWriter:
     """Tables controls the actual creation of the __diff_table__ based on
@@ -150,42 +152,63 @@ class DiffWriter:
         self.args = args
         self.conn = conn
         self.tables = ["A", "B"]
-        GetColumns(
-            conn,
-            schema=args["table_info"]["schema_name"],
-            table=args["table_info"]["table_initial"],
-            db_type=args["database"]["db_type"],
-        )
-        self.clause = DiffQueryClauses(args, conn)
-
+        self.db_type = self.args["database"]["db_type"]
+        self.table_initial = self.args["table_info"]["table_initial"]
+        self.table_secondary = self.args["table_info"]["table_secondary"]
+        self.table_diff = self.args["table_info"]["table_diff"]
+        self.schema_name = self.args["table_info"]["schema_name"]
+        self.key_cols = self.args["table_info"]["key_columns"]
+        self.compare_cols = self.args["table_info"]["comp_columns"]
+        self.ignore_cols = self.args["table_info"]["ignore_columns"]
+        self.initial_table_alias = self.args["table_info"]["initial_table_alias"]
+        self.secondary_table_alias = self.args["table_info"]["secondary_table_alias"]
         ###########################
         # cursor object used in temp psycopg2 connection
         self.cur = conn.cursor()
         ###########################
 
-    def create_diff_table(self):
-        select_clause = self.clause.select_clause_universal()
-        join_clause = self.clause.join_clause_universal()
-        except_clause = self.clause._except_clause_universal()
+    def _get_clauses(self):
+        initial_table_cols = get_columns(self.conn,
+                                         self.db_type,
+                                         self.schema_name,
+                                         self.table_initial)
+        secondary_table_cols = get_columns(self.conn,
+                                         self.db_type,
+                                         self.schema_name,
+                                         self.table_secondary)
+        common_table_cols = get_columns(initial_table_cols, secondary_table_cols)
+        clauses = QueryClauses(
+                table_cols = common_table_cols,
+                key_cols = self.key_cols,
+                compare_cols = self.compare_cols,
+                ignore_cols = self.ignore_cols,
+                initial_table_alias = self.initial_table_alias,
+                secondary_table_alias = self.secondary_table_alias)
+        return clauses
 
-        table_initial = self.args["table_info"]["table_initial"]
-        table_secondary = self.args["table_info"]["table_secondary"]
-        table_diff = self.args["table_info"]["table_diff"]
-        schema_name = self.args["table_info"]["schema_name"]
-
-        if self.args["database"]["db_type"] == "postgres":
-            query = f"""
-                CREATE TABLE {schema_name}.{table_diff} AS
-                SELECT
-                {select_clause}
-                FROM {schema_name}.{table_initial} A
-                    FULL OUTER JOIN {schema_name}.{table_secondary} B
-                        ON {join_clause}
-                    {except_clause}
+    def _assemble_create_query_psql(self):
+        select_clause = clauses.get_select()
+        join_clause = clauses.get_join()
+        create_query = f"""
+                CREATE TABLE {self.schema_name}.{self.table_diff} AS
+                SELECT {select_clauses}
+                FROM {self.schema_name}.{self.table_initial} A
+                    FULL OUTER JOIN {self.schema_name}.{self.table_secondary} B
+                    ON {join_clause}
                 """
+        return create_query
 
-            drop_diff_table = f"""DROP TABLE IF EXISTS {schema_name}.{table_diff}"""
+    def _assemble_drop_query(self):
+        if self.db_type == 'postgres' or 'mysql':
+            table_reference = f"{self.schema_name}.{self.table_diff}"
+        else:
+            table_reference = f"{self.table_diff}"
+        drop_query = (
+            f"""DROP TABLE IF EXISTS {table_reference}""")
+        return drop_query
 
+# this needs reformatting next, placing query frame here temporarily
+    def _assemble_create_query_sqlite(self, clauses):
         elif self.args["database"]["db_type"] == "sqlite":
             query = f"""
                 CREATE TABLE IF NOT EXISTS {table_diff} AS
@@ -213,35 +236,32 @@ class DiffWriter:
                         WHERE A.{self.args['table_info']['key_columns'][0]} IS NULL
                     """
 
-            drop_diff_table = f"""DROP TABLE IF EXISTS {diff_table}"""
+    def create_diff_table(self):
+        clauses = self._get_clauses()
 
-        elif self.args["database"]["db_type"] == "duckdb":
-            raise NotImplementedError("duckdb not supported yet")
-        elif self.args["database"]["db_type"] == "mysql":
-            raise NotImplementedError("mysql not supported yet")
+        if self.db_type == 'sqlite':
+            create_query = self._assemble_create_query_sqlite(clauses)
+            drop_query = self._assemble_drop_query()
+        elif self.db_type == 'postgres':
+            create_query = self._assemble_create_query_psql(clauses)
+            drop_query = self._assemble_drop_query()
+        else:
+            raise NotImplementedError('sorry this db isnt implemented')
+
+        logging.debug(f"[bold red] Diff Query[/]: {create_query}")
 
         try:
-            logging.debug(f"[bold red]Diff Query[/]: {query}")
-            logging.debug(f"[bold red]Select Arg[/]: {select_args}")
-            logging.debug(f"[bold red]Key Join[/]: {key_join}")
-            logging.debug(f"[bold red]Except Rows[/]: {except_rows}")
-
-            ####################################
-            # additional if else block added for psycopg2 cursor object
-            if self.args["database"]["db_type"] == "postgres":
-                self.cur.execute(drop_diff_table)
-                self.cur.execute(query)
-            else:
-                self.conn.execute(text(drop_diff_table))
-                self.conn.execute(text(query))
-            ####################################
-
-            GetSchemas(self.args, self.conn)
+            if self.db_type == 'sqlite' or 'duckdb' or 'mysql':
+                self.conn.execute(text(drop_query))
+                self.conn.execute(text(create_query))
+            elif self.db_type == 'postgres':
+                self.cur.execute(drop_query)
+                self.cur.execute(create_query)
         except OperationalError as e:
             logging.critical(f"[bold red blink]OPERATIONAL ERROR:[/] {e}")
-
         except NoSuchTableError as e:
             logging.critical(f"[bold red blink] NO TABLE ERROR:[/] {e}")
 
         finally:
             self.conn.commit()
+            print('Diff Table Created')
