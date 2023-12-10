@@ -13,6 +13,7 @@
 
 # BUILT-INS
 import logging
+from pprint import pprint as pp
 
 # THIRD PARTY
 from sqlalchemy.exc import NoSuchTableError, OperationalError
@@ -33,53 +34,45 @@ class QueryClauses:
     QueryPieces also gathers the names of each column within the table with self._get_schema()
     """
 
-    def __init__(self, args, conn):
-        self.args = args
-        self.conn = conn
+    def __init__(self, 
+                 table_cols: list[str],
+                 key_cols: list[str],
+                 compare_cols: list[str],
+                 ignore_cols: list[str],
+                 initial_table_alias: str,
+                 secondary_table_alias: str):
+
+        self.table_cols = table_cols
+        self.key_cols = key_cols
+        self.compare_cols = compare_cols
+        self.ignore_cols = ignore_cols
+        self.initial_table_alias = initial_table_alias
+        self.secondary_table_alias = secondary_table_alias
         self.tables = ["A", "B"]
 
-    def _select_args_universal(self):
+        if not compare_cols and not ignore_cols:
+            raise ValueError('Must have either compare_cols or ignore_cols')
+
+    def get_select(self) -> str:
         """This pieces together the initial SELECT arguments for the __diff_table__ creation
         using the comparison or ignore columns given.
         """
         string = ""
-        for key in self.args["table_info"]["key_columns"]:
-            string += f"A.{key} {key}, "
+        for key in self.key_cols:
+            string += f"    a.{key} {self.initial_table_alias}_{key}, \n"
+            string += f"    a.{key} {self.secondary_table_alias}_{key}, \n"
 
-        if self.args["system"]["column_type"] == "comp":
-            for table in self.tables:
-                for col in self.args["table_info"]["comp_columns"]:
-                    if (
-                        table == "B"
-                        and col == self.args["table_info"]["comp_columns"][-1]
-                    ):
-                        string += f'{table}.{col} {self.args["table_info"]["secondary_table_alias"]}_{col}'
-                    else:
-                        if table == "A":
-                            string += f'{table}.{col} {self.args["table_info"]["initial_table_alias"]}_{col}, '
-                        else:
-                            string += f'{table}.{col} {self.args["table_info"]["secondary_table_alias"]}_{col}, '
-            return string
+        if self.compare_cols:
+            usable_cols = sorted(list(set(self.compare_cols) - set(self.key_cols)))
         else:
-            # this is the section that covers the ignored cols
-            for table in self.tables:
-                for col in self.args["table_info"]["table_cols"]:
-                    if col not in self.args["table_info"]["ignore_columns"]:
-                        print(
-                            self.args["table_info"]["table_cols"][-1],
-                            "ignore cols clause",
-                        )
-                        if (
-                            table == "B"
-                            and col == self.args["table_info"]["table_cols"][-1]
-                        ):
-                            string += f'{table}.{col} {self.args["table_info"]["secondary_table_alias"]}_{col}'
-                        else:
-                            if table == "A":
-                                string += f'{table}.{col} {self.args["table_info"]["initial_table_alias"]}_{col}, '
-                            else:
-                                string += f'{table}.{col} {self.args["table_info"]["secondary_table_alias"]}_{col}, '
-            return string
+            usable_cols = list(set(self.table_cols) - set(self.ignore_cols))
+            usable_cols = sorted(list(set(usable_cols) - set(self.key_cols)))
+
+        for col in usable_cols:
+            string += f"    a.{col} {self.initial_table_alias}_{col}, \n"
+            string += f"    a.{col} {self.secondary_table_alias}_{col}, \n"
+        string = string.rstrip().rstrip(',')
+        return string
 
     def _key_join_universal(self):
         key_string = ""

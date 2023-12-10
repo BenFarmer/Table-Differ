@@ -70,8 +70,8 @@ def main():
         args
     )  # creates the connection to database using sqlalchemy
 
-    diff_table_maker = DiffTableMaker(args, conn)
-    diff_table_maker.create_diff_table()  # generates initial diff_table
+    tables = DiffWriter(args, conn)
+    tables.create_diff_table()  # generates initial diff_table
 
 
 #    Reports(conn, args)  # generates simple reporting
