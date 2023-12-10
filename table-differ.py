@@ -60,7 +60,7 @@ import psycopg2
 
 # PERSONAL
 from modules import get_args
-from modules.create_diff_table import Tables
+from modules.create_diff_table import DiffTableMaker
 from modules.reporting import Reports
 
 
@@ -70,16 +70,20 @@ def main():
         args
     )  # creates the connection to database using sqlalchemy
 
-    tables = Tables(args, conn)
-    tables.create_diff_table()  # generates initial diff_table
+    diff_table_maker = DiffTableMaker(args, conn)
+    diff_table_maker.create_diff_table()  # generates initial diff_table
+
+
 #    Reports(conn, args)  # generates simple reporting
 # reporting is turned off for the time being until it is upgraded to handle the differences
 # between databases in queries. (psql needing schema prefix)
+
 
 def create_connection(args):
     """Attempts to connect to database using SQLAlchemy and a URL that is pieced together from
     components in config.yaml
     """
+
     def create_url():
         db_url = None
         try:
