@@ -60,7 +60,7 @@ import psycopg2
 
 # PERSONAL
 from modules import get_args
-from modules.create_diff_table import DiffTableMaker
+from modules.create_diff_table import DiffWriter
 from modules.reporting import Reports
 
 
@@ -83,31 +83,25 @@ def create_connection(args):
     """Attempts to connect to database using SQLAlchemy and a URL that is pieced together from
     components in config.yaml
     """
+    db = args["database"]["db_type"]
 
     def create_url():
         db_url = None
         try:
-            if args["database"]["db_type"] == "postgres":
-                ################### return built in for testing the psycopg2 connection
+            if db == "postgres":
                 return
-                ###################
-                with open(expanduser("~/.pgpass"), "r") as f:
-                    host, port, database, user, password = f.read().split(":")
-                db_url = "postgresql+pyscopg2://{}:{}@{}:{}/{}".format(
-                    user, password, host, port, database
-                )
 
-            elif args["database"]["db_type"] == "mysql":
+            elif db == "mysql":
                 with open(expanduser("~/.my.cnf"), "r") as f:
                     host, port, database, user, password = f.read().split(":")
                 db_url = "mysql+pymysql://{}:{}@{}:{}/{}".format(
                     user, password, host, port, database
                 )
 
-            elif args["database"]["db_type"] == "sqlite":
+            elif db == "sqlite":
                 db_url = f'sqlite+pysqlite:///:{args["db_name"]}:'
 
-            elif args["database"]["db_type"] == "duckdb":
+            elif db == "duckdb":
                 raise NotImplementedError("duckdb not supported yet")
         except OSError:
             print("could not open/read file", f)
@@ -116,30 +110,38 @@ def create_connection(args):
             logging.info(f"[bold red] DATABASE URL:[/] {db_url}")
             return db_url
 
-    if args["system"]["local_db"] is True:
-        db_url = args["database"]["db_path"]
-    else:
+    def get_conn():
         db_url = create_url()
+        try:
+            engine = create_engine(db_url, echo=False, future=True)
+            conn = engine.connect()
+            logging.info(f"[bold red]CURRENT CONNECTION:[/]  {conn}")
+        except SQLAlchemyError as e:
+            print(f"ERROR: {str(e)}")
+        finally:
+            return conn
 
-    ########### temp psycopg2 connection ########################
-    if args["database"]["db_type"] == "postgres":
+
+    def psql_conn():
         conn = psycopg2.connect(
             host=args["database"]["db_host"],
             database=args["database"]["db_name"],
             user=args["database"]["db_user"],
             port=args["database"]["db_port"],
         )
-    #############################################################
-
-    try:
-        # commented out for psycopg2 testing
-        #            engine = create_engine(db_url, echo=False, future=True)
-        #            conn = engine.connect()
         logging.info(f"[bold red]CURRENT CONNECTION:[/]  {conn}")
-    except SQLAlchemyError as e:
-        print(f"ERROR: {str(e)}")
-    finally:
         return conn
+
+    if args["system"]["local_db"]:
+        engine = create_engine(args["database"]["db_path"])
+        conn = engine.connect()
+        # maybe this needs to be in a separate function for testing
+    else:
+        if db == 'postgres':
+            conn = psql_conn()
+        else:
+            conn = get_conn()
+    return conn
 
 
 if __name__ == "__main__":

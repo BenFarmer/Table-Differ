@@ -26,12 +26,6 @@ SECOND_KEY = 1
 class QueryClauses:
     """builds and returns the requested sql code to be inserted into the database dependent 'skeleton'
     code for building the diff table.
-    Pieces that are required:
-        - select arguments
-        - row exceptions
-        - key joins
-
-    QueryPieces also gathers the names of each column within the table with self._get_schema()
     """
 
     def __init__(self, 
@@ -39,6 +33,7 @@ class QueryClauses:
                  key_cols: list[str],
                  compare_cols: list[str],
                  ignore_cols: list[str],
+                 except_rows: list[int], #need to double check this is how rows would be passed
                  initial_table_alias: str,
                  secondary_table_alias: str):
 
@@ -46,6 +41,7 @@ class QueryClauses:
         self.key_cols = key_cols
         self.compare_cols = compare_cols
         self.ignore_cols = ignore_cols
+        self.except_rows = except_rows
         self.initial_table_alias = initial_table_alias
         self.secondary_table_alias = secondary_table_alias
 
@@ -77,27 +73,27 @@ class QueryClauses:
         string = ""
         return ' AND '.join([f' a.{x} = b.{x} ' for x in self.key_cols])
 
-    def _except_rows_universal(self):
+    def get_except(self) -> str:
         # this needs to be reformatted next
-        if self.args["table_info"]["except_rows"] is None:
+        if self.except_rows is None:
             return ""
         string = """WHERE """
         for table in self.tables:
-            for key in self.args["table_info"]["key_columns"]:  # id, name
+            for key in self.key_columns:
                 string += f"""{table}.{key} NOT IN ("""
-                for row in self.args["table_info"]["except_rows"]:  # 2, 5
-                    if row == self.args["table_info"]["except_rows"][-1]:
+                for row in self.except_rows:
+                    if row == self.except_rows[-1]:
                         string += f"""{row}"""
                     else:
                         string += f"""{row}, """
 
-                if key == self.args["table_info"]["key_columns"][-1]:
-                    if table == self.tables[-1]:
-                        string += """)"""
-                    else:
-                        string += """) AND """
-                else:
-                    string += """) AND """
+#                if key == self.key_columns[-1]:
+#                    if table == self.table_diff[-1]:
+#                        string += """)"""
+#                    else:
+#                        string += """) AND """
+#                else:
+#                    string += """) AND """
         return string
 
 # to be moved into separate module
@@ -110,8 +106,7 @@ def get_cols(conn,
     table_differ. The most important usage is within the sql builder functions where the
     names of columns are integral in order to properly piece together the arguments.
     """
-    db = self.args["database"]["db_type"]
-    if db == "postgres":
+    if db_type == "postgres":
         cur = conn.cursor()
         col_names = f"""
                 SELECT column_name
@@ -122,17 +117,17 @@ def get_cols(conn,
         cur.execute(col_names)
         columns = cur.fetchall()
 
-    elif db == "sqlite":
-        table_schema = self.conn.execute(
+    elif db_type == "sqlite":
+        table_schema = conn.execute(
             text(f"""PRAGMA table_info({table_name})""")
         )
         columns = []
         for result in table_schema:
             columns.append(result[1])
 
-    elif db == "duckdb":
+    elif db_type == "duckdb":
         raise NotImplementedError("duckdb not supported yet")
-    elif db == "mysql":
+    elif db_type == "mysql":
         raise NotImplementedError("mysql not supported yet")
     return columns
 
@@ -160,28 +155,27 @@ class DiffWriter:
         self.key_cols = self.args["table_info"]["key_columns"]
         self.compare_cols = self.args["table_info"]["comp_columns"]
         self.ignore_cols = self.args["table_info"]["ignore_columns"]
+        self.except_rows = self.args["table_info"]["except_rows"]
         self.initial_table_alias = self.args["table_info"]["initial_table_alias"]
         self.secondary_table_alias = self.args["table_info"]["secondary_table_alias"]
-        ###########################
-        # cursor object used in temp psycopg2 connection
-        self.cur = conn.cursor()
-        ###########################
+
 
     def _get_clauses(self):
-        initial_table_cols = get_columns(self.conn,
+        initial_table_cols = get_cols(self.conn,
                                          self.db_type,
                                          self.schema_name,
                                          self.table_initial)
-        secondary_table_cols = get_columns(self.conn,
+        secondary_table_cols = get_cols(self.conn,
                                          self.db_type,
                                          self.schema_name,
                                          self.table_secondary)
-        common_table_cols = get_columns(initial_table_cols, secondary_table_cols)
+        common_table_cols = get_common_cols(initial_table_cols, secondary_table_cols)
         clauses = QueryClauses(
                 table_cols = common_table_cols,
                 key_cols = self.key_cols,
                 compare_cols = self.compare_cols,
                 ignore_cols = self.ignore_cols,
+                except_rows = self.except_rows,
                 initial_table_alias = self.initial_table_alias,
                 secondary_table_alias = self.secondary_table_alias)
         return clauses
@@ -189,14 +183,14 @@ class DiffWriter:
     def _assemble_create_query_psql(self):
         select_clause = clauses.get_select()
         join_clause = clauses.get_join()
-        create_query = f"""
+        query = f"""
                 CREATE TABLE {self.schema_name}.{self.table_diff} AS
                 SELECT {select_clauses}
                 FROM {self.schema_name}.{self.table_initial} A
                     FULL OUTER JOIN {self.schema_name}.{self.table_secondary} B
                     ON {join_clause}
                 """
-        return create_query
+        return query
 
     def _assemble_drop_query(self):
         if self.db_type == 'postgres' or 'mysql':
@@ -209,32 +203,36 @@ class DiffWriter:
 
 # this needs reformatting next, placing query frame here temporarily
     def _assemble_create_query_sqlite(self, clauses):
-        elif self.args["database"]["db_type"] == "sqlite":
+        select_clause = clauses.get_select()
+        join_clause = clauses.get_join()
+        except_clause = clauses.get_except()
+        if self.args["database"]["db_type"] == "sqlite":
             query = f"""
-                CREATE TABLE IF NOT EXISTS {table_diff} AS
+                CREATE TABLE IF NOT EXISTS {self.table_diff} AS
                     SELECT
                     {select_clause}
-                    FROM {table_initial} A
-                        INNER JOIN {table_secondary} B
+                    FROM {self.table_initial} A
+                        INNER JOIN {self.table_secondary} B
                             ON {join_clause}
                         {except_clause}
 
                     UNION ALL
                     SELECT
                     {select_clause}
-                    FROM {table_secondary} B
-                        LEFT OUTER JOIN {table_initial} A
+                    FROM {self.table_secondary} B
+                        LEFT OUTER JOIN {self.table_initial} A
                             ON {join_clause}
                         WHERE A.{self.args['table_info']['key_columns'][0]} IS NULL
 
                     UNION ALL
                     SELECT
                     {select_clause}
-                    FROM {table_secondary} B
-                        INNER JOIN {table_initial} A
+                    FROM {self.table_secondary} B
+                        INNER JOIN {self.table_initial} A
                             ON {join_clause}
                         WHERE A.{self.args['table_info']['key_columns'][0]} IS NULL
                     """
+        return query
 
     def create_diff_table(self):
         clauses = self._get_clauses()
@@ -255,8 +253,9 @@ class DiffWriter:
                 self.conn.execute(text(drop_query))
                 self.conn.execute(text(create_query))
             elif self.db_type == 'postgres':
-                self.cur.execute(drop_query)
-                self.cur.execute(create_query)
+                cur = self.conn.cursor()
+                cur.execute(drop_query)
+                cur.execute(create_query)
         except OperationalError as e:
             logging.critical(f"[bold red blink]OPERATIONAL ERROR:[/] {e}")
         except NoSuchTableError as e:
