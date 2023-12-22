@@ -17,7 +17,7 @@ def get_config():
     final_config = build_arg_dict(cli_args, yaml_config)
     return final_config
 
-def get_args():
+def get_cli_args():
     """ Returns CLI arguments
     """
     parser = argparse.ArgumentParser(description="table comparison utility")
@@ -91,7 +91,7 @@ def get_args():
 
 
 
-def setup_logging(logging_level):
+def setup_logging(logging_level: str) -> None:
     log_level = str(logging_level).upper()
     rprint(f"[bold red]Current Log Level:[bold red blink] {log_level}")
 
@@ -120,25 +120,23 @@ def setup_logging(logging_level):
 
 
 
-    def build_arg_dict(yaml_config):
-        if args.configs is True:
-            db_type = yaml_config["db_type"]
-            table_initial = yaml_config["table_initial"]
-            table_secondary = yaml_config["table_secondary"]
-            table_diff = yaml_config["diff_table"]
-            key_columns = yaml_config["key_columns"]
-        else:
-            db_type = args.db_type
-            table_initial = args.tables[0]
-            table_secondary = args.tables[1]
-            table_diff = args.tables[2]
-            key_columns = args.key_columns
+    def build_arg_dict(args, yaml_config: dict|None=None) -> dict:
+        """ Returns finalized config dictionary.
+            CLI arguments override config file items.
+        """
+        if yaml_config is None:
+            yaml_config = {}
 
-        column_type = "comp"
-        if len(args.comparison_columns) == 0:
-            column_type = "ignore"
+        col_type = 'comp'
+        if not args.compare_cols and not yaml_config.get('compare_cols'):
+            col_type = 'ignore'
 
-        if args.local_db is True:
+        def get_table(table_type, position):
+            if args.tables and len(args.tables) > position:
+                return args.tables[position]
+            return yaml_config.get(table_type)
+
+        if args.local_db:
             db_path = yaml_config["db_path"]
         else:
             db_path = None
@@ -149,20 +147,20 @@ def setup_logging(logging_level):
                 "db_port": yaml_config["db_port"],
                 "db_name": yaml_config["db_name"],
                 "db_user": yaml_config["db_user"],
-                "db_type": db_type,
+                "db_type": args.db_type or yaml_config.get("db_type"),
                 "db_path": db_path,
             },
             "table_info": {
-                "table_initial": table_initial,  # name of 1st table being queried
-                "table_secondary": table_secondary,  # name of 2nd table being queried
-                "table_diff": table_diff,
+                "table_initial": get_table(table_initial, 0),  # name of 1st table being queried
+                "table_secondary": get_table(table_secondary, 1),  # name of 2nd table being queried
+                "table_diff": get_table(table_diff, 2),
 
                 "schema_name": yaml_config["schema_name"],
                 "table_cols": "null",  # name of the columns in the 2 tables queried
                 "diff_table_cols": "null",  # name of the columns in the diff table
-                "key_columns": key_columns,
-                "comp_columns": args.comparison_columns,
-                "ignore_columns": args.ignore_columns,
+                "key_cols": args.key_cols or yaml_config.get("key_cols"),
+                "comp_cols": args.compare_cols or yaml_config.get("compare_cols"),
+                "ignore_cols": args.ignore_cols or yaml_config.get("ignore_cols"),
                 "initial_table_alias": yaml_config[
                     "initial_table_alias"
                 ],  # alias for 1st table
@@ -174,13 +172,8 @@ def setup_logging(logging_level):
             "system": {
                 "local_db": args.local_db,
                 "print_tables": args.print_tables,
-                "column_type": column_type,
+                "col_type": col_type,
             },
         }
         logging.info(f"[bold red]ARGUMENTS USED:[/]  {arg_dict}")
         return arg_dict
-
-    args = parser.parse_args()
-    setup_logging(args.logging_level)
-    yaml_config = get_yaml()
-    return build_arg_dict(yaml_config)
