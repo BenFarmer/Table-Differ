@@ -4,21 +4,25 @@
 import logging
 import argparse
 import yaml
+from typing import Optional
 
 # THIRD PARTY
 from rich import print as rprint
 from rich.logging import RichHandler
 
+def get_config():
+    cli_args = get_cli_args()
+    setup_logging(cli_args.logging_level)
+    yaml_config = get_yaml_config(cli_args.config_file)
+    final_config = build_arg_dict(cli_args, yaml_config)
+    return final_config
 
 def get_args():
-    """This builds the primary dictionary of arguments used through Table Differ,
-    and also sets the logging level to be used while running. The arguments
-    gathered come from passed in args through argparse and a config.yaml file
+    """ Returns CLI arguments
     """
     parser = argparse.ArgumentParser(description="table comparison utility")
 
-    # REQUIRED ARGUMENTS
-    group = parser.add_mutually_exclusive_group(required=True)
+    group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument(
         "-c",
         "--comparison-columns",
@@ -36,13 +40,8 @@ def get_args():
         help="columns to not track/ignore, mutually exclusive with comparison_columns",
     )
 
-    # SEMI-REQUIRED ARGUMENTS
-    parser.add_argument(
-        "--configs",
-        action="store_true",
-        default=None,
-        help="would you like to use the additional variables stored in cfg",
-    )
+    parser.add_argument("--config-file", help="name of yaml config file")
+
     parser.add_argument(
         "-d",
         "--db-type",
@@ -88,19 +87,38 @@ def get_args():
         default=None,
         help="designates whether or not to use a local sourced database",
     )
+    return parser.parse_args()
 
-    def get_yaml():
-        """Critical information is stored within the config.yaml file
-        and this retrieves it and stores it in an accessable way
-        as 'yaml_config'
+
+
+def setup_logging(logging_level):
+    log_level = str(logging_level).upper()
+    rprint(f"[bold red]Current Log Level:[bold red blink] {log_level}")
+
+    FORMAT = "%(message)s"
+    logging.basicConfig(
+        level=logging.getLevelName(log_level),
+        format=FORMAT,
+        datefmt="[%X]",
+        handlers=[RichHandler(markup=True)],
+    )
+
+
+
+    def get_yaml_config(config_file: str) -> dict:
+        """ Returns program config from file
         """
-        with open("config.yaml") as stream:
+        with open(config_file, encoding = 'UTF-8') as stream:
             try:
                 yaml_config = yaml.safe_load(stream)
             except yaml.YAMLError as exc:
                 logging.critical(exc)
-            finally:
-                return yaml_config
+                if '.yml' not in config_file and '.yaml' no in config_file:
+                    logging.critical('Config_file does not appear to be a yaml file')
+                raise
+        return yaml_config
+
+
 
     def build_arg_dict(yaml_config):
         if args.configs is True:
@@ -166,16 +184,3 @@ def get_args():
     setup_logging(args.logging_level)
     yaml_config = get_yaml()
     return build_arg_dict(yaml_config)
-
-
-def setup_logging(logging_level):
-    log_level = str(logging_level).upper()
-    rprint(f"[bold red]Current Log Level:[bold red blink] {log_level}")
-
-    FORMAT = "%(message)s"
-    logging.basicConfig(
-        level=logging.getLevelName(log_level),
-        format=FORMAT,
-        datefmt="[%X]",
-        handlers=[RichHandler(markup=True)],
-    )
