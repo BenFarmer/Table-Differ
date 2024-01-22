@@ -1,0 +1,21 @@
+db_host: home
+db_port: 5432
+db_name: etl
+db_user: benfar
+
+
+db_type: 'sqlite'
+db_path: 'sqlite:///databases/Sqlite_test.db'
+
+table_initial: 'ex_1_initial'
+table_secondary: 'ex_1_secondary'
+diff_table: 'ex_1__diff__'
+
+key_cols: ['cust_id']
+compare_cols: ['cust_name', 'status', 'contract_start_date', 'contract_end_date', 'contract_credits',
+                'contract_balance', 'latest_billing_period']
+ignore_cols: []
+
+initial_table_alias: 'initial'
+secondary_table_alias: 'secondary'
+
