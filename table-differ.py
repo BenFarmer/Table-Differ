@@ -59,13 +59,13 @@ from sqlalchemy import create_engine
 import psycopg2
 
 # PERSONAL
-from modules import get_args
+from modules import get_config
 from modules.create_diff_table import DiffWriter
 from modules.reporting import Reports
 
 
 def main():
-    args = get_args.get_args()
+    args = get_config.get_config()
     conn = create_connection(
         args
     )  # creates the connection to database using sqlalchemy
