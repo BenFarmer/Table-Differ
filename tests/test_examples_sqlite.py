@@ -11,7 +11,7 @@ from modules import get_config
 from modules.create_diff_table import DiffWriter
 
 # DB_PATH = 'sqlite:///databases/table_diff_test.db'
-DB_PATH = '/home/ben/Envs/san_juan_data/db_tools/table_differ_dev/tests/SqliteTest.db'
+DB_PATH = '/home/ben/Envs/san_juan_data/db_tools/table_differ/tests/SqliteTest.db'
 EXAMPLE_DIR = pjoin(dirname(dirname(os.path.realpath(__file__))), 'examples_sqlite')
 
 

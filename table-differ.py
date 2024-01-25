@@ -44,9 +44,9 @@
         -p --print_tables           attempts to print both of the tables used in the comparison
                                     to the CLI. This is only to be used with small tables and will
                                     certainly cause issues when applied to very large tables
-"""
-# example testing run
-""" ./table-differ.py -i info --configs y -p y
+
+example testing run
+./table-differ.py -i info --configs y -p y
 """
 
 # BUILT-INS
@@ -54,94 +54,53 @@ import logging
 from os.path import expanduser
 
 # THIRD PARTY
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy import create_engine
 import psycopg2
 
 # PERSONAL
 from modules import get_config
 from modules.create_diff_table import DiffWriter
-from modules.reporting import Reports
+from modules.reporting import BasicReport
 
 
 def main():
     args = get_config.get_config()
-    conn = create_connection(
-        args
-    )  # creates the connection to database using sqlalchemy
+    db = args["database"]["db_type"]
+    conn = create_connection(args, db)
 
     tables = DiffWriter(args, conn)
     tables.create_diff_table()  # generates initial diff_table
+    basic_report = BasicReport(conn,
+                                args['table_info']['schema_name'],
+                                args['table_info']['table_initial'],
+                                args['table_info']['table_secondary'],
+                                args['table_info']['table_diff'],
+                                args['table_info']['comp_cols'],
+                                args['table_info']['ignore_cols'])
+    basic_report.generate_report()
 
 
-#    Reports(conn, args)  # generates simple reporting
-# reporting is turned off for the time being until it is upgraded to handle the differences
-# between databases in queries. (psql needing schema prefix)
-
-
-def create_connection(args):
+def create_connection(args, db: str):
     """Attempts to connect to database using SQLAlchemy and a URL that is pieced together from
     components in config.yaml
     """
-    db = args["database"]["db_type"]
-
-    def create_url():
-        db_url = None
-        try:
-            if db == "postgres":
-                return
-
-            elif db == "mysql":
-                with open(expanduser("~/.my.cnf"), "r") as f:
-                    host, port, database, user, password = f.read().split(":")
-                db_url = "mysql+pymysql://{}:{}@{}:{}/{}".format(
-                    user, password, host, port, database
-                )
-
-            elif db == "sqlite":
-                db_url = f'sqlite+pysqlite:///:{args["db_name"]}:'
-
-            elif db == "duckdb":
-                raise NotImplementedError("duckdb not supported yet")
-        except OSError:
-            print("could not open/read file", f)
-            sys.exit()
-        finally:
-            logging.info(f"[bold red] DATABASE URL:[/] {db_url}")
-            return db_url
-
-    def get_conn():
-        db_url = create_url()
-        try:
-            engine = create_engine(db_url, echo=False, future=True)
-            conn = engine.connect()
-            logging.info(f"[bold red]CURRENT CONNECTION:[/]  {conn}")
-        except SQLAlchemyError as e:
-            print(f"ERROR: {str(e)}")
-        finally:
-            return conn
-
-
-    def psql_conn():
-        conn = psycopg2.connect(
-            host=args["database"]["db_host"],
-            database=args["database"]["db_name"],
-            user=args["database"]["db_user"],
-            port=args["database"]["db_port"],
-        )
-        logging.info(f"[bold red]CURRENT CONNECTION:[/]  {conn}")
-        return conn
-
-    if args["system"]["local_db"]:
-        engine = create_engine(args["database"]["db_path"])
-        conn = engine.connect()
-        # maybe this needs to be in a separate function for testing
-    else:
-        if db == 'postgres':
-            conn = psql_conn()
+    try:
+        if db == "postgres":
+            conn = psycopg2.connect(
+                host=args["database"]["db_host"],
+                database=args["database"]["db_name"],
+                user=args["database"]["db_user"],
+                port=args["database"]["db_port"],
+            )
+        elif db == "sqlite":
+            assert args["database"]["db_path"]
+            conn = sqlite3.connect(args["database"]["db_path"])
         else:
-            conn = get_conn()
-    return conn
+            raise ValueError(f'Invalid db value: {db}')
+        logging.info(f"[bold red]CURRENT CONNECTION:[/]  {conn}")
+    except Exception as e:
+        print(f"ERROR: {str(e)}")
+    finally:
+        return conn
 
 
 if __name__ == "__main__":
