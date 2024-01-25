@@ -5,14 +5,14 @@ db_user: 'myusername'
 
 db_type: 'sqlite'
 db_path: 'sqlite:///databases/table_diff_test.db'
-  # used for machine 1
-  #db_path: 'sqlite:///home/benjamin-farmer/Envs/sanjuandata/local_db/sqlite/Diff_test.db'
-  # used for machine 0
+schema_name: 'public'
+
 table_initial: 'testing_0'
 table_secondary: 'testing_1'
 diff_table: '__diff-table__' # default to __diff_table))
 key_columns: ['id']
-schema_name: 'public'
+compare_cols: []
+ignore_cols: []
 
 initial_table_alias: 'origin'
 secondary_table_alias: 'comparison'
