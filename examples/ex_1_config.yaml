@@ -1,0 +1,25 @@
+db_host: labrat
+db_port: 5432
+db_name: etl
+db_user: kenfar
+
+db_type: 'postgres'
+#db_path: 'sqlite:///databases/Sqlite_test.db'
+  # used for machine 1
+#db_path: 'sqlite:///home/benjamin-farmer/Envs/sanjuandata/local_db/sqlite/Diff_test.db'
+  # used for machine 0
+schema_name: 'tabdiff'
+table_initial: 'ex_1_initial'
+table_secondary: 'ex_1_secondary'
+diff_table: '' # defaults to table_secondary + '__diff__'
+key_cols: ['cust_id']
+compare_cols: ['cust_name',
+                'status', 
+                'contract_start_date', 
+                'contract_end_date', 
+                'contract_credits', 
+                'contract_balance', 
+                'latest_billing_period']
+ignore_cols: []
+initial_table_alias: 'origin'
+secondary_table_alias: 'comparison'
